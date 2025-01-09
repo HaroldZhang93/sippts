@@ -10,9 +10,9 @@ __email__ = "pepeluxx@gmail.com"
 # based in rtpnatscan: https://github.com/kapejod/rtpnatscan
 
 import socket
-import fcntl
 import os
 import sys
+import platform
 from .lib.color import Color
 from .lib.logos import Logo
 
@@ -60,11 +60,18 @@ class RTPBleedFlood:
         # Create a UDP socket
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            
+            # 根据操作系统设置非阻塞模式
+            if platform.system() != 'Windows':
+                import fcntl
+                fcntl.fcntl(sock, fcntl.F_SETFL, os.O_NONBLOCK)
+            else:
+                sock.setblocking(False)
+                
         except socket.error:
             print(f"{self.c.RED}Failed to create socket")
             print(self.c.WHITE)
             sys.exit(1)
-        fcntl.fcntl(sock, fcntl.F_SETFL, os.O_NONBLOCK)
 
         host = (str(self.ip), self.port)
         nloop = 0

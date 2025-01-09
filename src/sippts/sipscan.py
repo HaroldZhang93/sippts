@@ -7,6 +7,7 @@ __license__ = "GPL"
 __copyright__ = "Copyright (C) 2015-2024, SIPPTS"
 __email__ = "pepeluxx@gmail.com"
 
+import platform
 import random
 import socket
 import sys
@@ -21,7 +22,7 @@ try:
 except:
     pass
 
-from .lib.functions import (
+from sippts.lib.functions import (
     create_message,
     parse_message,
     get_machine_default_ip,
@@ -34,11 +35,25 @@ from .lib.functions import (
     load_cve,
     check_model,
 )
-from .lib.color import Color
-from .lib.logos import Logo
+from sippts.lib.color import Color
+from sippts.lib.logos import Logo
 from itertools import product
 from concurrent.futures import ThreadPoolExecutor
-import resource as res
+if platform.system() != 'Windows':
+    import resource as res
+else:
+    # Windows 系统下的替代实现
+    class WindowsResource:
+        def __init__(self):
+            self.RLIMIT_NOFILE = None
+            
+        def getrlimit(self, limit):
+            return (500, 500)  # 返回默认值
+            
+        def setrlimit(self, limit, limits):
+            pass  # Windows 下不执行实际操作
+    
+    res = WindowsResource()
 
 class SipScan:
     def __init__(self):
@@ -58,10 +73,10 @@ class SipScan:
         self.to_name = ""
         self.to_domain = ""
         self.user_agent = "pplsip"
-        self.threads = 200
+        self.threads = 100
         self.verbose = 0
         self.ping = 0
-        self.file = ""
+        self.file = "C:/workspace/IMS/Test Tools/sippts/sippts/iplist.txt"
         self.nocolor = ""
         self.ofile = ""
         self.oifile = ""
@@ -96,30 +111,34 @@ class SipScan:
 
 
     def set_ulimit(self, threads):
-        # Get current 'ulimit -n' value
-        soft,ohard = res.getrlimit(res.RLIMIT_NOFILE)
-        hard = ohard
-        
-        # If ulimit < threads, set new value
-        if soft < int(threads):
-            soft = threads + 100
+        if platform.system() != 'Windows':
+            # Get current 'ulimit -n' value
+            soft,ohard = res.getrlimit(res.RLIMIT_NOFILE)
+            hard = ohard
+            
+            # If ulimit < threads, set new value
+            if soft < int(threads):
+                soft = threads + 100
 
-        if hard < soft:
-            hard = soft
-
-        try:
-            res.setrlimit(res.RLIMIT_NOFILE,(soft,hard))
-        except (ValueError,res.error):
-            try:
+            if hard < soft:
                 hard = soft
-                # Trouble with max limit, retrying with soft,hard
-                res.setrlimit(res.RLIMIT_NOFILE,(soft,hard))
-            except Exception:
-                # Failed to set ulimit, setting new threads value
-                soft,hard = res.getrlimit(res.RLIMIT_NOFILE)
-                self.threads = soft
 
-        soft,hard = res.getrlimit(res.RLIMIT_NOFILE)
+            try:
+                res.setrlimit(res.RLIMIT_NOFILE,(soft,hard))
+            except (ValueError,res.error):
+                try:
+                    hard = soft
+                    # Trouble with max limit, retrying with soft,hard
+                    res.setrlimit(res.RLIMIT_NOFILE,(soft,hard))
+                except Exception:
+                    # Failed to set ulimit, setting new threads value
+                    soft,hard = res.getrlimit(res.RLIMIT_NOFILE)
+                    self.threads = soft
+
+            soft,hard = res.getrlimit(res.RLIMIT_NOFILE)
+        else:
+            # Windows 系统下使用默认值
+            self.threads = min(self.threads, 500)  # Windows 下限制最大线程数
 
 
     def start(self):
@@ -965,3 +984,12 @@ class SipScan:
             f.close()
 
         self.cve.clear()
+        
+        
+def test_sipscan():
+    # 创建 SipScan 实例
+    scanner = SipScan()
+    
+    
+if __name__ == "__main__":
+    test_sipscan()

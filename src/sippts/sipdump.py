@@ -11,16 +11,24 @@ import pyshark
 from .lib.functions import parse_digest
 from .lib.color import Color
 from .lib.logos import Logo
+import asyncio
 
 
 class SipDump:
     def __init__(self):
-        self.file = ""
-        self.ofile = ""
+        self.file = "test.pcap"
+        self.ofile = "sipdump.txt"
 
         self.c = Color()
 
     def start(self):
+        # 为当前线程创建新的事件循环
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
         logo = Logo("sipdump")
         logo.print()
 

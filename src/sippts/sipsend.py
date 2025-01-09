@@ -616,3 +616,8 @@ class SipSend:
 
         if self.ofile != "":
             fw.close()
+            
+    def stop(self):
+        self.run = False
+        print(f"{self.c.BYELLOW}\nYou pressed Ctrl+C!")
+        print(self.c.WHITE)

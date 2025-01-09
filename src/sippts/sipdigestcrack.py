@@ -30,13 +30,13 @@ from .lib.logos import Logo
 
 class SipDigestCrack:
     def __init__(self):
-        self.file = ""
-        self.wordlist = ""
+        self.file = "sipdump.txt"
+        self.wordlist = "passwordlist.txt"
         self.username = ""
         self.bruteforce = 0
-        self.charset = "printable"
-        self.min = "1"
-        self.max = "8"
+        self.charset = "digits"
+        self.min = "6"
+        self.max = "6"
         self.prefix = ""
         self.suffix = ""
         self.verbose = 0
@@ -48,6 +48,9 @@ class SipDigestCrack:
         self.totaltime = 0
         self.found = []
         self.saved = []
+        self.total_passwords_tried = 0
+        self.last_output_time = 0  # 上次输出时间
+        self.output_interval = 1.0  # 输出时间间隔（秒）
         
         self.lock = None
 
@@ -55,9 +58,9 @@ class SipDigestCrack:
 
         self.c = Color()
 
-        self.run_event = threading.Event()
-        self.run_event.set()
-        signal.signal(signal.SIGINT, self.signal_handler)
+        # self.run_event = threading.Event()
+        # self.run_event.set()
+        # signal.signal(signal.SIGINT, self.signal_handler)
 
     def start(self):
         self.lock = Lock()
@@ -94,13 +97,14 @@ class SipDigestCrack:
             self.chars = self.charset
 
         try:
-            self.bruteforce == int(self.bruteforce)
+            self.bruteforce = int(self.bruteforce)
         except:
             self.bruteforce = 0
 
         logo = Logo("sipdigestcrack")
         logo.print()
-
+        
+        print(f"{self.c.BWHITE}[✓] Check bruteforce: {self.c.GREEN}{self.bruteforce}")
         print(f"{self.c.BWHITE}[✓] Input file: {self.c.GREEN}{self.file}")
         print(f"{self.c.BWHITE}[✓] Wordlist: {self.c.GREEN}{self.wordlist}")
         print(f"{self.c.BWHITE}[✓] Used threads: {self.c.GREEN}{str(self.threads)}")
@@ -115,8 +119,8 @@ class SipDigestCrack:
             with open(self.file, "r") as f:
                 with ThreadPoolExecutor(max_workers=self.threads) as executor:
                     for line in f:
-                        if not self.run_event.is_set():
-                            break
+                        # if not self.run_event.is_set():
+                        #     break
                         line = line.strip()
                         values = line.split('"')
                         ipsrc = values[0]
@@ -162,9 +166,8 @@ class SipDigestCrack:
         self.stop()
 
     def stop(self):
-        print(f"{self.c.BYELLOW}You pressed Ctrl+C!{self.c.WHITE}")
-        print(f"{self.c.BWHITE}\nStopping sipcrack ...\n{self.c.WHITE}")
-        self.run_event.clear()
+        """停止破解"""
+        print(f"{self.c.BYELLOW}Stopping crack...{self.c.WHITE}")
         self.run = False
 
     def read_data(
@@ -475,31 +478,35 @@ class SipDigestCrack:
         word_start,
     ):
         if self.bruteforce == 1:
-            if not self.run_event.is_set():
-                return ""
+            print(f"{self.c.GREEN}[-] Bruteforce mode{self.c.WHITE}")
 
             try:
                 START_VALUE = self.check_value(word_start, self.chars)
 
                 for n in range(int(self.min), int(self.max) + 1):
-                    if not self.run_event.is_set():
-                        break
-
+                    if not self.run:  # 检查停止标志
+                        return ""
+                        
                     xs = itertools.product(self.chars, repeat=n)
                     combos = itertools.islice(xs, START_VALUE, None)
 
                     for i, pwd in enumerate(combos, start=START_VALUE):
-                        if not self.run_event.is_set():
-                            break
-
+                        if not self.run:  # 检查停止标志
+                            return ""
+                            
                         pwd = "".join(pwd)
                         pwd = "%s%s%s" % (self.prefix, pwd, self.suffix)
                         pwd = pwd.replace("\n", "")
 
-                        print(
-                            f"{self.c.BWHITE}   [-] Trying pass {self.c.YELLOW}{pwd}{self.c.WHITE} for user {self.c.GREEN}{username}{self.c.WHITE}".ljust(100),
-                            end="\r",
-                        )
+                        with self.lock:
+                            self.total_passwords_tried += 1
+                            current_time = time.time()
+                            if current_time - self.last_output_time >= self.output_interval:
+                                print(
+                                    f"{self.c.BWHITE}   [-] Trying pass {self.c.YELLOW}{pwd}{self.c.WHITE} for user {self.c.GREEN}{username}{self.c.WHITE} (tried: {self.total_passwords_tried})".ljust(100),
+                                    end="\r",
+                                )
+                                self.last_output_time = current_time
 
                         self.pwdvalue = pwd
 
@@ -520,23 +527,24 @@ class SipDigestCrack:
                             self.verbose,
                             "",
                         ):
+                            print()  # 打印一个换行，避免状态行影响结果显示
                             self.save_data(self.charset, username, pwd, "true")
                             return pwd
             except KeyboardInterrupt:
+                print()  # 打印一个换行，避免状态行影响结果显示
                 self.save_data(self.charset, username, pwd, "false")
                 self.stop()
                 return ""
             except:
                 pass
         else:
+            print(f"{self.c.GREEN}[-] Wordlist mode{self.c.WHITE}")
             with open(self.wordlist, "rb") as fd:
                 for pwd in fd:
-                    # if not self.run_event.is_set():
-                    #     # fd.close()
-                    #     self.save_data(self.wordlist, username, pwd, "false")
-                    #     self.stop()
-                    #     break
-
+                    if not self.run:  # 检查停止标志
+                        fd.close()
+                        return ""
+                        
                     try:
                         pwd = pwd.decode("ascii")
                         pwd = pwd.replace("'", "")
@@ -547,16 +555,15 @@ class SipDigestCrack:
                         pwd = pwd.strip()
                         pwd = pwd[0:50]
 
-                        print(
-                            f"{self.c.BWHITE}   [-] Trying pass {self.c.YELLOW}{pwd}{self.c.WHITE} for user {self.c.GREEN}{username}{self.c.WHITE}".ljust(250),
-                            end="\r",
-                        )
-
-                        if not self.run_event.is_set():
-                            fd.close()
-                            self.save_data(self.wordlist, username, pwd, "false")
-                            self.stop()
-                            break
+                        with self.lock:
+                            self.total_passwords_tried += 1
+                            current_time = time.time()
+                            if current_time - self.last_output_time >= self.output_interval:
+                                print(
+                                    f"{self.c.BWHITE}   [-] Trying pass {self.c.YELLOW}{pwd}{self.c.WHITE} for user {self.c.GREEN}{username}{self.c.WHITE} (tried: {self.total_passwords_tried})".ljust(100),
+                                    end="\r",
+                                )
+                                self.last_output_time = current_time
 
                         if self.verbose == 1:
                             print(f"{self.c.WHITE}Password: {pwd.ljust(50)}")
@@ -575,10 +582,12 @@ class SipDigestCrack:
                             self.verbose,
                             "",
                         ):
+                            print()  # 打印一个换行，避免状态行影响结果显示
                             fd.close()
                             self.save_data(self.wordlist, username, pwd, "true")
                             return pwd
                     except KeyboardInterrupt:
+                        print()  # 打印一个换行，避免状态行影响结果显示
                         fd.close()
                         self.save_data(self.wordlist, username, pwd, "false")
                         self.stop()
@@ -646,6 +655,9 @@ class SipDigestCrack:
 
         print(
             f"{self.c.BWHITE}Time elapsed: {self.c.YELLOW}{str(format_time(self.totaltime))}{self.c.WHITE}"
+        )
+        print(
+            f"{self.c.BWHITE}Total passwords tried: {self.c.YELLOW}{str(self.total_passwords_tried)}{self.c.WHITE}"
         )
         print(self.c.WHITE)
 

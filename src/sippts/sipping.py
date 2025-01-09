@@ -304,6 +304,7 @@ class SipPing:
                 # sys.exit()
 
             try:
+                ccolor = self.c.BRED
                 start = time.time()
 
                 if self.proto == "TLS":
@@ -329,7 +330,6 @@ class SipPing:
 
                 self.pingcount += 1
                 
-                ccolor = self.c.BRED
                 if response[0:1] == "1":
                     ccolor = self.c.BBLUE
                 if response[0:1] == "2":

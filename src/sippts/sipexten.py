@@ -41,7 +41,7 @@ class SipExten:
         self.route = ""
         self.rport = "5060"
         self.proto = "UDP"
-        self.exten = "100-300"
+        self.exten = ""
         self.prefix = ""
         self.method = "REGISTER"
         self.domain = ""

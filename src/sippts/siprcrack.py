@@ -40,19 +40,19 @@ from concurrent.futures import ThreadPoolExecutor
 
 class SipRemoteCrack:
     def __init__(self):
-        self.ip = ""
+        self.ip = "192.168.4.200"
         self.host = ""
         self.proxy = ""
         self.route = ""
         self.rport = "5060"
         self.proto = "UDP"
-        self.exten = ""
+        self.exten = "3001-3020"
         self.prefix = ""
         self.authuser = ""
         self.ext_len = ""
         self.domain = ""
-        self.contact_domain = ""
-        self.wordlist = ""
+        self.contact_domain = "192.168.4.66"
+        self.wordlist = "passwordlist.txt"
         self.user_agent = "pplsip"
         self.threads = "100"
         self.verbose = 0
@@ -266,7 +266,7 @@ class SipRemoteCrack:
                             "",
                             callid,
                             "",
-                            "1",
+                            "2",
                             "",
                             digest,
                             auth_type,
@@ -425,9 +425,9 @@ class SipRemoteCrack:
                 else:
                     self.extens.append(p)
 
-        signal.signal(signal.SIGINT, self.signal_handler)
-        print(f"{self.c.BYELLOW}\nPress Ctrl+C to stop\n")
-        print(self.c.WHITE)
+        # signal.signal(signal.SIGINT, self.signal_handler)
+        # print(f"{self.c.BYELLOW}\nPress Ctrl+C to stop\n")
+        # print(self.c.WHITE)
 
         threads = list()
         t = threading.Thread(target=self.crack, daemon=True)

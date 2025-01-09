@@ -22,6 +22,7 @@ from .lib.functions import (
     ip2long,
     get_default_gateway_linux,
     get_default_gateway_mac,
+    get_default_gateway_windows,
     enable_ip_route,
     disable_ip_route,
     ip2long,
@@ -89,8 +90,10 @@ class ArpSpoof:
         if self.gw == "":
             if ops == "Linux":
                 self.gw = get_default_gateway_linux()
-            if ops == "Darwin":
+            elif ops == "Darwin":
                 self.gw = get_default_gateway_mac().strip()
+            elif ops == "Windows":
+                self.gw = get_default_gateway_windows()
 
         print(f"{self.c.BWHITE}[✓] Operating System: {self.c.GREEN}{ops}")
         print(f"{self.c.BWHITE}[✓] Current User: {self.c.GREEN}{current_user}")

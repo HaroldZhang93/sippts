@@ -20,7 +20,8 @@ if __name__ == "__main__":
         'pyshark',
         'websocket-client',
         'rel',
-        'resource'
+        'resource',
+        'PyQt6'
       ],
       extra_requires=[
         'cursor',

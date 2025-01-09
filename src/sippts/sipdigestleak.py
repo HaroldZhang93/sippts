@@ -45,12 +45,12 @@ class SipDigestLeak:
         self.from_user = "100"
         self.from_name = ""
         self.from_domain = ""
-        self.to_user = "100"
+        self.to_user = "3004"
         self.to_name = ""
         self.to_domain = ""
         self.user_agent = "pplsip"
         self.localip = ""
-        self.ofile = ""
+        self.ofile = "sipdigestleak.txt"
         self.lfile = ""
         self.user = ""
         self.pwd = ""
@@ -58,7 +58,7 @@ class SipDigestLeak:
         self.sdp = 0
         self.sdes = 0
         self.verbose = 0
-        self.file = ""
+        self.file = "iplist.txt"
         self.ppi = ""
         self.pai = ""
 
@@ -114,9 +114,9 @@ class SipDigestLeak:
         logo = Logo("sipdigestleak")
         logo.print()
 
-        signal.signal(signal.SIGINT, self.signal_handler)
-        print(f"{self.c.BYELLOW}\nPress Ctrl+C to stop")
-        print(self.c.WHITE)
+        # signal.signal(signal.SIGINT, self.signal_handler)
+        # print(f"{self.c.BYELLOW}\nPress Ctrl+C to stop")
+        # print(self.c.WHITE)
 
         if (
             self.domain != ""
@@ -801,15 +801,14 @@ class SipDigestLeak:
                     sock_ssl.sendall(bytes(msg[:8192], "utf-8"))
                 else:
                     sock.sendto(bytes(msg[:8192], "utf-8"), host)
-
+                                    
                 if auth != "":
                     print(f"{self.c.BGREEN}Auth={auth}\n{self.c.WHITE}")
 
-                    line = "%s###%d###%s###%s" % (ip, port, proto, auth)
+                    line = "%s###%d###%s###%s" % (ip, int(port), proto, auth)
                     self.found.append(line)
 
                     headers = parse_digest(auth)
-
                     if self.ofile != "":
                         data = '%s"%s"%s"%s"BYE"%s"%s"%s"%s"%s"MD5"%s' % (
                             ip,
@@ -850,7 +849,7 @@ class SipDigestLeak:
                 self.found.append(line)
         except socket.timeout:
             print(f"{self.c.BRED}No Auth Digest received :(\n{self.c.WHITE}")
-            line = "%s###%d###%s###No Auth Digest received :(" % (ip, port, proto)
+            line = "%s###%d###%s###No Auth Digest received :(" % (ip, int(port), proto)
             self.found.append(line)
             pass
         except:

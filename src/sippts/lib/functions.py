@@ -9,6 +9,8 @@ import os
 import hashlib
 import platform
 
+from sippts.lib.color import Color
+
 
 BRED = "\033[1;31;20m"
 RED = "\033[0;31;20m"
@@ -84,6 +86,22 @@ def get_default_gateway_linux():
                 continue
 
             return socket.inet_ntoa(struct.pack("<L", int(fields[2], 16)))
+        
+        
+c = Color()
+
+def get_default_gateway_windows():
+    """获取Windows系统的默认网关IP地址"""
+    try:
+        # 使用netifaces获取默认网关
+        gateways = netifaces.gateways()
+        default_gateway = gateways['default'][netifaces.AF_INET][0]
+        return default_gateway
+            
+    except Exception as e:
+        print(f"{RED}Error getting Windows default gateway: {str(e)}{WHITE}")
+        
+    return None
 
 
 def get_machine_default_ip(type="ip"):
@@ -281,7 +299,7 @@ def create_message(
     header,
     withcontact,
 ):
-    expires = "120"
+    expires = "1800"
 
     if method == "REGISTER" or method == "NOTIFY" or method == "ACK":
         starting_line = "%s sip:%s SIP/2.0" % (method, domain)
