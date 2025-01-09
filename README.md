@@ -195,6 +195,7 @@ Sippts is a set of tools for auditing VoIP servers and devices using the SIP pro
 
 ## Operating System ##
 Sippts has been tested on:
+  * Windows
   * Linux
   * MacOS
 
@@ -204,7 +205,7 @@ Sippts has been tested on:
 ## Instalation ##
   Installing via git:
   ```bash
-  git clone https://github.com/Pepelux/sippts.git
+  git clone https://github.com/HaroldZhang93/sippts.git
 ```
 ```bash
 cd sippts
@@ -212,4 +213,8 @@ cd sippts
 ```bash
 pip3 install .
 ```
-
+## Start sippts with GUI ##
+```bash
+cd src/sippts/gui
+python3 app.py
+```
