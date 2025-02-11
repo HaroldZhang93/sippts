@@ -756,7 +756,7 @@ def parse_digest(buffer):
         else:
             data["nonce"] = ""
 
-        m = re.search(r"uri=\"([a-z|A-Z|0-9|-|_|\.|\:|\;|\=|\@|\#]+)\"", header)
+        m = re.search(r"uri=\"([^\"]+)\"", header)
         if m:
             data["uri"] = "%s" % (m.group(1))
         else:
