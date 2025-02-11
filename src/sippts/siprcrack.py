@@ -208,8 +208,10 @@ class SipRemoteCrack:
 
                         if self.authuser == "":
                             auth_user = to_user
+                            auth_user = "%s@%s" % (to_user, self.domain)
                         else:
-                            auth_user = self.authuser
+                            # auth_user = self.authuser
+                            auth_user = "%s@%s" % (self.authuser, self.domain)
 
                         realm = headers["realm"]
                         nonce = headers["nonce"]

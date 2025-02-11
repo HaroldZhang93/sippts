@@ -128,6 +128,7 @@ class MainWindow(QMainWindow):
         self.scan_ip_input = QLineEdit()
         self.scan_ip_input.setPlaceholderText("例如: mysipserver.com | 192.168.0.10 | 192.168.0.0/24")
         self.scan_ip_input.setMinimumWidth(300)
+        self.scan_ip_input.setText("192.168.100.1-192.168.100.255")
         layout.addWidget(self.scan_ip_input, row, 1)
         
         layout.addWidget(QLabel("端口:"), row, 2)
@@ -146,7 +147,7 @@ class MainWindow(QMainWindow):
         self.scan_file_input = QLineEdit()
         self.scan_file_input.setPlaceholderText("包含多个IP或网段的文件路径")
         self.scan_file_input.setMinimumWidth(240)
-        self.scan_file_input.setText("C:/workspace/IMS/Test Tools/sippts/sippts/iplist.txt")
+        # self.scan_file_input.setText("C:/workspace/IMS/Test Tools/sippts/sippts/iplist.txt")
         file_layout.addWidget(self.scan_file_input)
         
         # 添加选择文件按钮
@@ -201,7 +202,7 @@ class MainWindow(QMainWindow):
         
         layout.addWidget(QLabel("From用户:"), row, 2)
         self.scan_from_user_input = QLineEdit()
-        self.scan_from_user_input.setText("3009")
+        self.scan_from_user_input.setText("+861088889005")
         self.scan_from_user_input.setPlaceholderText("From头的用户名")
         self.scan_from_user_input.setMinimumWidth(300)
         layout.addWidget(self.scan_from_user_input, row, 3)
@@ -222,7 +223,7 @@ class MainWindow(QMainWindow):
         row += 1
         layout.addWidget(QLabel("To用户:"), row, 0)
         self.scan_to_user_input = QLineEdit()
-        self.scan_to_user_input.setText("100")
+        self.scan_to_user_input.setText("+861088889005")
         self.scan_to_user_input.setPlaceholderText("To头的用户名")
         self.scan_to_user_input.setMinimumWidth(300)
         layout.addWidget(self.scan_to_user_input, row, 1)
@@ -600,7 +601,7 @@ class MainWindow(QMainWindow):
         row = 0
         layout.addWidget(QLabel("目标 IP/网段:"), row, 0)
         self.crack_ip_input = QLineEdit()
-        self.crack_ip_input.setText("192.168.4.200")
+        self.crack_ip_input.setText("20.50.1.10")
         self.crack_ip_input.setPlaceholderText("目标IP地址或网段，例如: 192.168.0.0/24")
         self.crack_ip_input.setMinimumWidth(300)
         layout.addWidget(self.crack_ip_input, row, 1)
@@ -615,7 +616,7 @@ class MainWindow(QMainWindow):
         row += 1
         layout.addWidget(QLabel("分机范围:"), row, 0)
         self.crack_exten_input = QLineEdit()
-        self.crack_exten_input.setText("3001-3020")
+        self.crack_exten_input.setText("9001-9005")
         self.crack_exten_input.setPlaceholderText("例如: 100 | 100,102,105 | 100-200")
         self.crack_exten_input.setMinimumWidth(300)
         layout.addWidget(self.crack_exten_input, row, 1)
@@ -638,6 +639,7 @@ class MainWindow(QMainWindow):
         self.crack_prefix_input = QLineEdit()
         self.crack_prefix_input.setPlaceholderText("用于认证的分机前缀")
         self.crack_prefix_input.setMinimumWidth(300)
+        self.crack_prefix_input.setText("+86108888")
         layout.addWidget(self.crack_prefix_input, row, 3)
         
         row += 1
@@ -658,6 +660,7 @@ class MainWindow(QMainWindow):
         self.crack_domain_input = QLineEdit()
         self.crack_domain_input.setPlaceholderText("SIP域名或IP (默认: 目标IP)")
         self.crack_domain_input.setMinimumWidth(300)
+        self.crack_domain_input.setText("dra.ims.sdt")
         layout.addWidget(self.crack_domain_input, row, 1)
         
         layout.addWidget(QLabel("Contact域名:"), row, 2)
@@ -1846,7 +1849,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel("目标 IP:"), row, 0)
         self.leak_ip_input = QLineEdit()
         self.leak_ip_input.setPlaceholderText("目标主机IP地址")
-        self.leak_ip_input.setText("192.168.4.105")
+        self.leak_ip_input.setText("192.168.100.10")
         self.leak_ip_input.setMinimumWidth(300)
         layout.addWidget(self.leak_ip_input, row, 1)
         
@@ -1908,7 +1911,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel("Contact域名:"), row, 2)
         self.leak_contact_domain_input = QLineEdit()
         self.leak_contact_domain_input.setPlaceholderText("Contact头域名或IP")
-        self.leak_contact_domain_input.setText("192.168.4.202")
+        self.leak_contact_domain_input.setText("192.168.100.18")
         self.leak_contact_domain_input.setMinimumWidth(300)
         layout.addWidget(self.leak_contact_domain_input, row, 3)
         
@@ -1942,7 +1945,7 @@ class MainWindow(QMainWindow):
         row += 1
         layout.addWidget(QLabel("To用户:"), row, 0)
         self.leak_to_user_input = QLineEdit()
-        self.leak_to_user_input.setText("3004")
+        self.leak_to_user_input.setText("+861088889003")
         self.leak_to_user_input.setPlaceholderText("To头的用户名")
         self.leak_to_user_input.setMinimumWidth(300)
         layout.addWidget(self.leak_to_user_input, row, 1)
@@ -2145,37 +2148,37 @@ class MainWindow(QMainWindow):
         
         # 设置列宽比例
         layout.setColumnStretch(0, 1)  # 标签列
-        layout.setColumnStretch(1, 4)  # 输入框列
+        layout.setColumnStretch(1, 2)  # 输入框列
         layout.setColumnStretch(2, 1)  # 标签列
-        layout.setColumnStretch(3, 4)  # 输入框列
+        layout.setColumnStretch(3, 2)  # 输入框列
         
         # 基本参数
         row = 0
         layout.addWidget(QLabel("目标 IP:"), row, 0)
         self.send_ip_input = QLineEdit()
         self.send_ip_input.setPlaceholderText("目标主机IP地址")
-        self.send_ip_input.setText("192.168.4.105")
-        self.send_ip_input.setMinimumWidth(300)
+        self.send_ip_input.setText("20.50.1.10")
+        self.send_ip_input.setMinimumWidth(200)
         layout.addWidget(self.send_ip_input, row, 1)
         
         layout.addWidget(QLabel("端口:"), row, 2)
         self.send_port_input = QLineEdit()
         self.send_port_input.setText("5060")
         self.send_port_input.setPlaceholderText("目标端口")
-        self.send_port_input.setMinimumWidth(300)
+        self.send_port_input.setMinimumWidth(200)
         layout.addWidget(self.send_port_input, row, 3)
         
         row += 1
         layout.addWidget(QLabel("本地端口:"), row, 0)
         self.send_lport_input = QLineEdit()
         self.send_lport_input.setPlaceholderText("本地端口(可选)")
-        self.send_lport_input.setMinimumWidth(300)
+        self.send_lport_input.setMinimumWidth(200)
         layout.addWidget(self.send_lport_input, row, 1)
 
         layout.addWidget(QLabel("本地IP:"), row, 2)
         self.send_local_ip_input = QLineEdit()
         self.send_local_ip_input.setPlaceholderText("本地IP地址(可选)")
-        self.send_local_ip_input.setMinimumWidth(300)
+        self.send_local_ip_input.setMinimumWidth(200)
         layout.addWidget(self.send_local_ip_input, row, 3)
         
         row += 1
@@ -2186,7 +2189,7 @@ class MainWindow(QMainWindow):
         
         self.send_template_input = QLineEdit()
         self.send_template_input.setPlaceholderText("SIP消息模板文件路径")
-        self.send_template_input.setMinimumWidth(240)
+        self.send_template_input.setMinimumWidth(140)
         file_layout.addWidget(self.send_template_input)
         
         # 添加选择文件按钮
@@ -2202,14 +2205,14 @@ class MainWindow(QMainWindow):
         self.send_proto_input = QComboBox()
         self.send_proto_input.addItems(["UDP", "TCP", "TLS"])
         self.send_proto_input.setCurrentText("UDP")
-        self.send_proto_input.setMinimumWidth(300)
+        self.send_proto_input.setMinimumWidth(200)
         layout.addWidget(self.send_proto_input, row, 3)
         
         row += 1
         layout.addWidget(QLabel("代理:"), row, 0)
         self.send_proxy_input = QLineEdit()
         self.send_proxy_input.setPlaceholderText("例如: 192.168.1.1 或 192.168.1.1:5070")
-        self.send_proxy_input.setMinimumWidth(300)
+        self.send_proxy_input.setMinimumWidth(200)
         layout.addWidget(self.send_proxy_input, row, 1)
         
         layout.addWidget(QLabel("方法:"), row, 2)
@@ -2219,88 +2222,93 @@ class MainWindow(QMainWindow):
             "INVITE", "OPTIONS", "ACK", "CANCEL", "BYE", "PRACK",
             "INFO", "REFER", "UPDATE"
         ])
-        self.send_method_input.setCurrentText("INVITE")
-        self.send_method_input.setMinimumWidth(300)
+        self.send_method_input.setCurrentText("REGISTER")
+        self.send_method_input.setMinimumWidth(200)
         layout.addWidget(self.send_method_input, row, 3)
         
         row += 1
         layout.addWidget(QLabel("域名:"), row, 0)
         self.send_domain_input = QLineEdit()
         self.send_domain_input.setPlaceholderText("SIP域名或IP (默认: 目标IP)")
-        self.send_domain_input.setMinimumWidth(300)
+        self.send_domain_input.setMinimumWidth(200)
+        self.send_domain_input.setText("dra.ims.sdt")
         layout.addWidget(self.send_domain_input, row, 1)
         
         layout.addWidget(QLabel("Contact域名:"), row, 2)
         self.send_contact_domain_input = QLineEdit()
         self.send_contact_domain_input.setPlaceholderText("Contact头域名或IP")
-        self.send_contact_domain_input.setMinimumWidth(300)
+        self.send_contact_domain_input.setMinimumWidth(200)
         layout.addWidget(self.send_contact_domain_input, row, 3)
         
         row += 1
         layout.addWidget(QLabel("From名称:"), row, 0)
         self.send_from_name_input = QLineEdit()
         self.send_from_name_input.setPlaceholderText("例如: Bob")
-        self.send_from_name_input.setMinimumWidth(300)
+        self.send_from_name_input.setMinimumWidth(200)
         layout.addWidget(self.send_from_name_input, row, 1)
         
         layout.addWidget(QLabel("From用户:"), row, 2)
         self.send_from_user_input = QLineEdit()
-        self.send_from_user_input.setText("100")
+        self.send_from_user_input.setText("+861088889005")
         self.send_from_user_input.setPlaceholderText("From头的用户名")
-        self.send_from_user_input.setMinimumWidth(300)
+        self.send_from_user_input.setMinimumWidth(200)
         layout.addWidget(self.send_from_user_input, row, 3)
         
         row += 1
         layout.addWidget(QLabel("From域名:"), row, 0)
         self.send_from_domain_input = QLineEdit()
         self.send_from_domain_input.setPlaceholderText("From头的域名")
-        self.send_from_domain_input.setMinimumWidth(300)
+        self.send_from_domain_input.setMinimumWidth(200)
+        self.send_from_domain_input.setText("dra.ims.sdt")
         layout.addWidget(self.send_from_domain_input, row, 1)
 
         layout.addWidget(QLabel("From标签:"), row, 2)
         self.send_from_tag_input = QLineEdit()
         self.send_from_tag_input.setPlaceholderText("From头的标签值")
-        self.send_from_tag_input.setMinimumWidth(300)
+        self.send_from_tag_input.setMinimumWidth(200)
         layout.addWidget(self.send_from_tag_input, row, 3)
         
         row += 1
         layout.addWidget(QLabel("To名称:"), row, 0)
         self.send_to_name_input = QLineEdit()
         self.send_to_name_input.setPlaceholderText("例如: Alice")
-        self.send_to_name_input.setMinimumWidth(300)
+        self.send_to_name_input.setMinimumWidth(200)
         layout.addWidget(self.send_to_name_input, row, 1)
         
         layout.addWidget(QLabel("To用户:"), row, 2)
         self.send_to_user_input = QLineEdit()
-        self.send_to_user_input.setText("100")
+        self.send_to_user_input.setText("+861088889005")
         self.send_to_user_input.setPlaceholderText("To头的用户名")
-        self.send_to_user_input.setMinimumWidth(300)
+        self.send_to_user_input.setMinimumWidth(200)
         layout.addWidget(self.send_to_user_input, row, 3)
         
         row += 1
         layout.addWidget(QLabel("To域名:"), row, 0)
         self.send_to_domain_input = QLineEdit()
         self.send_to_domain_input.setPlaceholderText("To头的域名")
-        self.send_to_domain_input.setMinimumWidth(300)
+        self.send_to_domain_input.setMinimumWidth(200)
+        self.send_to_domain_input.setText("dra.ims.sdt")
         layout.addWidget(self.send_to_domain_input, row, 1)
 
         layout.addWidget(QLabel("To标签:"), row, 2)
         self.send_to_tag_input = QLineEdit()
         self.send_to_tag_input.setPlaceholderText("To头的标签值")
-        self.send_to_tag_input.setMinimumWidth(300)
+        self.send_to_tag_input.setMinimumWidth(200)
         layout.addWidget(self.send_to_tag_input, row, 3)
         
         row += 1
         layout.addWidget(QLabel("认证用户:"), row, 0)
         self.send_auth_user_input = QLineEdit()
         self.send_auth_user_input.setPlaceholderText("认证用户名")
-        self.send_auth_user_input.setMinimumWidth(300)
+        self.send_auth_user_input.setMinimumWidth(200)
+        self.send_auth_user_input.setText("+861088889005")
         layout.addWidget(self.send_auth_user_input, row, 1)
         
         layout.addWidget(QLabel("认证密码:"), row, 2)
         self.send_auth_pass_input = QLineEdit()
         self.send_auth_pass_input.setPlaceholderText("认证密码")
-        self.send_auth_pass_input.setMinimumWidth(300)
+        self.send_auth_pass_input.setMinimumWidth(200)
+        self.send_auth_pass_input.setText("123456")
         layout.addWidget(self.send_auth_pass_input, row, 3)
         
         row += 1
@@ -2308,40 +2316,40 @@ class MainWindow(QMainWindow):
         self.send_ua_input = QLineEdit()
         self.send_ua_input.setText("pplsip")
         self.send_ua_input.setPlaceholderText("User-Agent头的值")
-        self.send_ua_input.setMinimumWidth(300)
+        self.send_ua_input.setMinimumWidth(200)
         layout.addWidget(self.send_ua_input, row, 1)
 
         layout.addWidget(QLabel("超时时间(秒):"), row, 2)
         self.send_timeout_input = QLineEdit()
         self.send_timeout_input.setText("5")
         self.send_timeout_input.setPlaceholderText("请求超时时间")
-        self.send_timeout_input.setMinimumWidth(300)
+        self.send_timeout_input.setMinimumWidth(200)
         layout.addWidget(self.send_timeout_input, row, 3)
 
         row += 1
         layout.addWidget(QLabel("P-Preferred-Identity:"), row, 0)
         self.send_ppi_input = QLineEdit()
         self.send_ppi_input.setPlaceholderText("P-Preferred-Identity头的值")
-        self.send_ppi_input.setMinimumWidth(300)
+        self.send_ppi_input.setMinimumWidth(200)
         layout.addWidget(self.send_ppi_input, row, 1)
 
         layout.addWidget(QLabel("P-Asserted-Identity:"), row, 2)
         self.send_pai_input = QLineEdit()
         self.send_pai_input.setPlaceholderText("P-Asserted-Identity头的值")
-        self.send_pai_input.setMinimumWidth(300)
+        self.send_pai_input.setMinimumWidth(200)
         layout.addWidget(self.send_pai_input, row, 3)
 
         row += 1
         layout.addWidget(QLabel("Branch:"), row, 0)
         self.send_branch_input = QLineEdit()
         self.send_branch_input.setPlaceholderText("Via头的branch参数")
-        self.send_branch_input.setMinimumWidth(300)
+        self.send_branch_input.setMinimumWidth(200)
         layout.addWidget(self.send_branch_input, row, 1)
 
         layout.addWidget(QLabel("Call-ID:"), row, 2)
         self.send_callid_input = QLineEdit()
         self.send_callid_input.setPlaceholderText("Call-ID头的值")
-        self.send_callid_input.setMinimumWidth(300)
+        self.send_callid_input.setMinimumWidth(200)
         layout.addWidget(self.send_callid_input, row, 3)
 
         row += 1
@@ -2349,13 +2357,13 @@ class MainWindow(QMainWindow):
         self.send_cseq_input = QLineEdit()
         self.send_cseq_input.setText("1")
         self.send_cseq_input.setPlaceholderText("CSeq头的序号值")
-        self.send_cseq_input.setMinimumWidth(300)
+        self.send_cseq_input.setMinimumWidth(200)
         layout.addWidget(self.send_cseq_input, row, 1)
 
         layout.addWidget(QLabel("自定义头部:"), row, 2)
         self.send_header_input = QLineEdit()
         self.send_header_input.setPlaceholderText("自定义SIP头部")
-        self.send_header_input.setMinimumWidth(300)
+        self.send_header_input.setMinimumWidth(200)
         layout.addWidget(self.send_header_input, row, 3)
 
         row += 1
@@ -2397,7 +2405,7 @@ class MainWindow(QMainWindow):
         
         self.send_output_input = QLineEdit()
         self.send_output_input.setPlaceholderText("输出文件路径")
-        self.send_output_input.setMinimumWidth(240)
+        self.send_output_input.setMinimumWidth(140)
         output_layout.addWidget(self.send_output_input)
         
         # 添加选择文件按钮

@@ -992,7 +992,7 @@ class UiTools:
                         print(f"{c.WHITE}Value {c.BRED}{value} {c.WHITE}is not valid\n")
                     ok = False
                 else:
-                    mod.verbose = value
+                    mod.verbose = int(value)
             else:
                 value = mod.verbose
         elif param == "output_file":

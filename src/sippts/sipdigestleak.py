@@ -632,13 +632,16 @@ class SipDigestLeak:
 
             # receive 200 Ok - call answered
             if headers["response_code"] == "200":
-                cuser = headers["contactuser"]
-                cdomain = headers["contactdomain"]
-                if cdomain == "":
-                    cdomain = self.domain
-                else:
-                    if cuser != None and cuser != "":
-                        cdomain = cuser + "@" + cdomain
+                try:
+                    cuser = headers.get("contactuser", "")
+                    cdomain = headers.get("contactdomain", "")
+                    if cdomain == "":
+                        cdomain = self.domain
+                    else:
+                        if cuser != None and cuser != "":
+                            cdomain = cuser + "@" + cdomain
+                except:
+                    pass
 
                 totag = headers["totag"]
 
@@ -852,8 +855,10 @@ class SipDigestLeak:
             line = "%s###%d###%s###No Auth Digest received :(" % (ip, int(port), proto)
             self.found.append(line)
             pass
-        except:
-            pass
+        except Exception as e:
+            print(f"{self.c.BRED}发生异常: {str(e)}\n{self.c.WHITE}")
+            line = "%s###%d###%s###异常: %s" % (ip, int(port), proto, str(e))
+            self.found.append(line)
         finally:
             sock.close()
 

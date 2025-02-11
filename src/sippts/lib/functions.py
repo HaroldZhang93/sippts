@@ -738,7 +738,7 @@ def parse_digest(buffer):
     data["algorithm"] = "MD5"
 
     for header in headers:
-        m = re.search(r"username=\"([a-z|A-Z|0-9|-|_|\.|:]+)\"", header)
+        m = re.search(r'username=\"([^\"]+)\"', header)
         if m:
             data["username"] = "%s" % (m.group(1))
         else:
