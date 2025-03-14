@@ -674,6 +674,7 @@ def main():
         from sippts.sipsniff import SipSniff
 
         s = SipSniff()
+        s.list_interfaces = False
         s.dev = dev
         s.ofile = ofile
         s.auth = auth

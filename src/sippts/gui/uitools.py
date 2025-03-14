@@ -851,7 +851,12 @@ class UiTools:
             if run == False:
                 mod.loop = (value == "是")
             else:
-                value = "是" if mod.loop else "否"
+                value = "是" if mod.loop else "否"  
+        elif param == "force":
+            if run == False:
+                mod.force = (value == "是")
+            else:
+                value = "是" if mod.force else "否"
         else:
             if log == True:
                 print(f"{c.WHITE}Wrong option: {c.BRED}{param}{c.WHITE}")

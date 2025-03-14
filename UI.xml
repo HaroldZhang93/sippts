@@ -1,0 +1,264 @@
+<mxfile host="app.diagrams.net" modified="2024-02-25T00:00:00.000Z" agent="Mozilla/5.0" version="21.1.9" etag="your-etag" type="device">
+  <diagram id="architecture" name="SIPPTs架构图">
+    <mxGraphModel dx="1422" dy="798" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="1600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- 应用入口 -->
+        <mxCell id="2" value="SIPPTs应用" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;startSize=30;fontSize=14;fontStyle=1;rounded=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="1020" height="1520" as="geometry" />
+        </mxCell>
+        
+        <!-- GUI层 -->
+        <mxCell id="3" value="GUI层" style="swimlane;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;fontStyle=1;rounded=1;shadow=1;" vertex="1" parent="2">
+          <mxGeometry x="40" y="50" width="940" height="350" as="geometry" />
+        </mxCell>
+        
+        <!-- MainWindow -->
+        <mxCell id="4" value="MainWindow (主窗口)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="3">
+          <mxGeometry x="30" y="40" width="880" height="200" as="geometry" />
+        </mxCell>
+        
+        <!-- MainWindow子模块 - 第一行 -->
+        <mxCell id="5" value="扫描标签页&#xa;(create_scan_tab)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="4">
+          <mxGeometry x="20" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="6" value="分机探测标签页&#xa;(create_exten_tab)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="4">
+          <mxGeometry x="150" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="7" value="密码破解标签页&#xa;(create_crack_tab)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="4">
+          <mxGeometry x="280" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="8" value="压力测试标签页&#xa;(create_flood_tab)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="4">
+          <mxGeometry x="410" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="9" value="数据包分析标签页&#xa;(create_dump_tab)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="4">
+          <mxGeometry x="540" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="10" value="离线破解标签页&#xa;(create_dcrack_tab)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="4">
+          <mxGeometry x="670" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- MainWindow子模块 - 第二行 -->
+        <mxCell id="11" value="SIP Digest Leak标签页&#xa;(create_leak_tab)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="4">
+          <mxGeometry x="20" y="100" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="RTP Bleed标签页&#xa;(create_rtpbleed_tab)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="4">
+          <mxGeometry x="150" y="100" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="RTP Inject标签页&#xa;(create_rtpbleedinject_tab)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="4">
+          <mxGeometry x="280" y="100" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="14" value="SIP发送标签页&#xa;(create_send_tab)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="4">
+          <mxGeometry x="410" y="100" width="120" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- 线程管理 -->
+        <mxCell id="15" value="ModuleWorker&#xa;(线程管理)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="4">
+          <mxGeometry x="670" y="100" width="120" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- 其他GUI组件 -->
+        <mxCell id="16" value="UITools (UI工具类)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="3">
+          <mxGeometry x="30" y="260" width="400" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="17" value="UI控件创建与管理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="16">
+          <mxGeometry x="20" y="30" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="18" value="样式与布局管理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="16">
+          <mxGeometry x="150" y="30" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="19" value="事件处理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="16">
+          <mxGeometry x="280" y="30" width="100" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="20" value="LogManager (日志管理)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="3">
+          <mxGeometry x="450" y="260" width="200" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="21" value="日志记录与显示" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="20">
+          <mxGeometry x="20" y="30" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- 核心功能层 -->
+        <mxCell id="22" value="核心功能层" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontStyle=1;rounded=1;shadow=1;" vertex="1" parent="2">
+          <mxGeometry x="40" y="420" width="940" height="700" as="geometry" />
+        </mxCell>
+        
+        <!-- SIP扫描模块 -->
+        <mxCell id="23" value="SIPScan (SIP扫描)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="22">
+          <mxGeometry x="30" y="40" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="24" value="SIP服务器发现" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="23">
+          <mxGeometry x="20" y="30" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="25" value="端口扫描" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="23">
+          <mxGeometry x="20" y="70" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- SIP分机枚举模块 -->
+        <mxCell id="26" value="SIPExten (分机枚举)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="22">
+          <mxGeometry x="250" y="40" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="27" value="分机号码探测" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="26">
+          <mxGeometry x="20" y="30" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="28" value="用户枚举" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="26">
+          <mxGeometry x="20" y="70" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- SIP认证破解模块 -->
+        <mxCell id="29" value="SIPDigestCrack (认证破解)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="22">
+          <mxGeometry x="470" y="40" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="在线密码破解" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="29">
+          <mxGeometry x="20" y="30" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="31" value="字典攻击" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="29">
+          <mxGeometry x="20" y="70" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- SIP洪水攻击模块 -->
+        <mxCell id="32" value="SIPFlood (洪水攻击)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="22">
+          <mxGeometry x="690" y="40" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="33" value="INVITE洪水" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="32">
+          <mxGeometry x="20" y="30" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="34" value="REGISTER洪水" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="32">
+          <mxGeometry x="20" y="70" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- SIP数据包分析模块 -->
+        <mxCell id="35" value="SIPDump (数据包分析)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="22">
+          <mxGeometry x="30" y="180" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="36" value="SIP数据包捕获" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="35">
+          <mxGeometry x="20" y="30" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="37" value="认证信息提取" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="35">
+          <mxGeometry x="20" y="70" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- SIP离线破解模块 -->
+        <mxCell id="38" value="SIPDigestLeak (Digest泄露)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="22">
+          <mxGeometry x="250" y="180" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="39" value="SIP认证信息泄露" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="38">
+          <mxGeometry x="20" y="30" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="40" value="哈希值提取" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="38">
+          <mxGeometry x="20" y="70" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- RTP Bleed模块 -->
+        <mxCell id="41" value="RTPBleed (RTP媒体泄露)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="22">
+          <mxGeometry x="470" y="180" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="42" value="RTP媒体流监听" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="41">
+          <mxGeometry x="20" y="30" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="43" value="音频数据提取" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="41">
+          <mxGeometry x="20" y="70" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- RTP Inject模块 -->
+        <mxCell id="44" value="RTPBleedInject (RTP注入)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="22">
+          <mxGeometry x="690" y="180" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="45" value="音频数据注入" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="44">
+          <mxGeometry x="20" y="30" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="46" value="媒体流劫持" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="44">
+          <mxGeometry x="20" y="70" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- SIP发送模块 -->
+        <mxCell id="47" value="SIPSend (SIP消息发送)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="22">
+          <mxGeometry x="30" y="320" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="48" value="自定义SIP消息发送" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="47">
+          <mxGeometry x="20" y="30" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="49" value="模板使用" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="47">
+          <mxGeometry x="20" y="70" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- SIPSniff模块 -->
+        <mxCell id="50" value="SIPSniff (SIP嗅探)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="22">
+          <mxGeometry x="250" y="320" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="51" value="网络接口监听" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="50">
+          <mxGeometry x="20" y="30" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="52" value="SIP流量捕获" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="50">
+          <mxGeometry x="20" y="70" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- SIPInvite模块 -->
+        <mxCell id="53" value="SIPInvite (SIP呼叫)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="22">
+          <mxGeometry x="470" y="320" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="54" value="SIP呼叫发起" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="53">
+          <mxGeometry x="20" y="30" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="55" value="会话管理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="53">
+          <mxGeometry x="20" y="70" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- SIPEnumerate模块 -->
+        <mxCell id="56" value="SIPEnumerate (SIP枚举)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="22">
+          <mxGeometry x="690" y="320" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="57" value="SIP服务枚举" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="56">
+          <mxGeometry x="20" y="30" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="58" value="用户信息收集" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="56">
+          <mxGeometry x="20" y="70" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- 其他辅助模块 -->
+        <mxCell id="59" value="辅助模块" style="swimlane;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="22">
+          <mxGeometry x="30" y="460" width="860" height="220" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="60" value="SIPPing&#xa;(SIP连通性测试)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="59">
+          <mxGeometry x="20" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="61" value="ARPSpoof&#xa;(ARP欺骗)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="59">
+          <mxGeometry x="150" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="62" value="SIPPcapDump&#xa;(PCAP数据分析)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="59">
+          <mxGeometry x="280" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="63" value="WSSend&#xa;(WebSocket发送)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="59">
+          <mxGeometry x="410" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="64" value="RTCPBleed&#xa;(RTCP媒体泄露)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="59">
+          <mxGeometry x="540" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="65" value="AstAMI&#xa;(Asterisk管理接口)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="59">
+          <mxGeometry x="670" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- 库层 -->
+        <mxCell id="66" value="库层" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1;rounded=1;shadow=1;" vertex="1" parent="2">
+          <mxGeometry x="40" y="1140" width="940" height="160" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="67" value="functions.py&#xa;(通用函数库)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;rounded=1;shadow=1;" vertex="1" parent="66">
+          <mxGeometry x="30" y="40" width="200" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="68" value="网络功能" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="67">
+          <mxGeometry x="20" y="30" width="75" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="69" value="系统功能" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="67">
+          <mxGeometry x="105" y="30" width="75" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="70" value="加密与哈希功能" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" vertex="1" parent="67">
+          <mxGeometry x="20" y="70" width="160" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

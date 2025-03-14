@@ -1,0 +1,305 @@
+from PyQt5.QtWidgets import (
+    QLabel, QLineEdit, QComboBox, QPushButton, 
+    QHBoxLayout, QVBoxLayout, QGridLayout, QTextEdit, QFileDialog
+)
+from PyQt5.QtCore import Qt
+
+from sippts.gui.common.base_tab import BaseTab
+from sippts.sipscan import SipScan
+
+class ScanTab(BaseTab):
+    """SIP扫描模块标签页"""
+    
+    def __init__(self, main_window):
+        super().__init__(main_window)
+        
+        # 初始化UI
+        self.setup_ui()
+    
+    def setup_ui(self):
+        """设置UI界面"""
+        # 创建主布局
+        layout = QGridLayout()
+        self.setLayout(layout)
+        
+        # 设置列宽比例
+        layout.setColumnStretch(0, 1)  # 标签列
+        layout.setColumnStretch(1, 4)  # 输入框列
+        layout.setColumnStretch(2, 1)  # 标签列
+        layout.setColumnStretch(3, 4)  # 输入框列
+        
+        # 基本参数
+        row = 0
+        # 第一行
+        layout.addWidget(QLabel("目标 IP/网段:"), row, 0)
+        self.ip_input = QLineEdit()
+        self.ip_input.setPlaceholderText("例如: mysipserver.com | 192.168.0.10 | 192.168.0.0/24")
+        self.ip_input.setMinimumWidth(300)
+        self.ip_input.setText("192.168.100.1-192.168.100.255")
+        layout.addWidget(self.ip_input, row, 1)
+        
+        layout.addWidget(QLabel("端口:"), row, 2)
+        self.port_input = QLineEdit()
+        self.port_input.setText("5060")
+        self.port_input.setPlaceholderText("例如: 5060 | 5070,5080 | 5060-5080")
+        self.port_input.setMinimumWidth(300)
+        layout.addWidget(self.port_input, row, 3)
+        
+        row += 1
+        layout.addWidget(QLabel("IP列表文件:"), row, 0)
+        
+        # 创建水平布局来放置输入框和按钮
+        file_layout = QHBoxLayout()
+        
+        self.file_input = QLineEdit()
+        self.file_input.setPlaceholderText("包含多个IP或网段的文件路径")
+        self.file_input.setMinimumWidth(240)
+        file_layout.addWidget(self.file_input)
+        
+        # 添加选择文件按钮
+        file_btn = QPushButton("选择")
+        file_btn.setFixedWidth(60)
+        file_btn.clicked.connect(self.choose_ip_file)
+        file_layout.addWidget(file_btn)
+        
+        # 将水平布局添加到网格布局中
+        layout.addLayout(file_layout, row, 1)
+        
+        layout.addWidget(QLabel("协议:"), row, 2)
+        self.proto_input = QComboBox()
+        self.proto_input.addItems(["UDP", "TCP", "TLS", "ALL"])
+        self.proto_input.setCurrentText("UDP")
+        self.proto_input.setMinimumWidth(300)
+        layout.addWidget(self.proto_input, row, 3)
+        
+        row += 1
+        layout.addWidget(QLabel("代理:"), row, 0)
+        self.proxy_input = QLineEdit()
+        self.proxy_input.setPlaceholderText("例如: 192.168.1.1 或 192.168.1.1:5070")
+        self.proxy_input.setMinimumWidth(300)
+        layout.addWidget(self.proxy_input, row, 1)
+        
+        layout.addWidget(QLabel("扫描方法:"), row, 2)
+        self.method_input = QComboBox()
+        self.method_input.addItems(["OPTIONS", "REGISTER", "INVITE"])
+        self.method_input.setCurrentText("OPTIONS")
+        self.method_input.setMinimumWidth(300)
+        layout.addWidget(self.method_input, row, 3)
+        
+        row += 1
+        layout.addWidget(QLabel("域名:"), row, 0)
+        self.domain_input = QLineEdit()
+        self.domain_input.setPlaceholderText("SIP域名或IP (默认: 目标IP)")
+        self.domain_input.setMinimumWidth(300)
+        layout.addWidget(self.domain_input, row, 1)
+        
+        layout.addWidget(QLabel("Contact域名:"), row, 2)
+        self.contact_domain_input = QLineEdit()
+        self.contact_domain_input.setPlaceholderText("Contact头域名或IP, 例如: 10.0.1.2")
+        self.contact_domain_input.setMinimumWidth(300)
+        layout.addWidget(self.contact_domain_input, row, 3)
+        
+        row += 1
+        layout.addWidget(QLabel("From名称:"), row, 0)
+        self.from_name_input = QLineEdit()
+        self.from_name_input.setPlaceholderText("例如: Bob")
+        self.from_name_input.setMinimumWidth(300)
+        layout.addWidget(self.from_name_input, row, 1)
+        
+        layout.addWidget(QLabel("From用户:"), row, 2)
+        self.from_user_input = QLineEdit()
+        self.from_user_input.setText("+861088889005")
+        self.from_user_input.setPlaceholderText("From头的用户名")
+        self.from_user_input.setMinimumWidth(300)
+        layout.addWidget(self.from_user_input, row, 3)
+        
+        row += 1
+        layout.addWidget(QLabel("From域名:"), row, 0)
+        self.from_domain_input = QLineEdit()
+        self.from_domain_input.setPlaceholderText("From头的域名")
+        self.from_domain_input.setMinimumWidth(300)
+        layout.addWidget(self.from_domain_input, row, 1)
+        
+        layout.addWidget(QLabel("To名称:"), row, 2)
+        self.to_name_input = QLineEdit()
+        self.to_name_input.setPlaceholderText("例如: Alice")
+        self.to_name_input.setMinimumWidth(300)
+        layout.addWidget(self.to_name_input, row, 3)
+        
+        row += 1
+        layout.addWidget(QLabel("To用户:"), row, 0)
+        self.to_user_input = QLineEdit()
+        self.to_user_input.setText("+861088889005")
+        self.to_user_input.setPlaceholderText("To头的用户名")
+        self.to_user_input.setMinimumWidth(300)
+        layout.addWidget(self.to_user_input, row, 1)
+        
+        layout.addWidget(QLabel("To域名:"), row, 2)
+        self.to_domain_input = QLineEdit()
+        self.to_domain_input.setPlaceholderText("To头的域名")
+        self.to_domain_input.setMinimumWidth(300)
+        layout.addWidget(self.to_domain_input, row, 3)
+        
+        row += 1
+        layout.addWidget(QLabel("User-Agent:"), row, 0)
+        self.ua_input = QLineEdit()
+        self.ua_input.setText("pplsip")
+        self.ua_input.setPlaceholderText("User-Agent头的值")
+        self.ua_input.setMinimumWidth(300)
+        layout.addWidget(self.ua_input, row, 1)
+        
+        layout.addWidget(QLabel("线程数:"), row, 2)
+        self.threads_input = QLineEdit()
+        self.threads_input.setText("100")
+        self.threads_input.setPlaceholderText("扫描使用的线程数")
+        self.threads_input.setMinimumWidth(300)
+        layout.addWidget(self.threads_input, row, 3)
+        
+        row += 1
+        layout.addWidget(QLabel("超时(秒):"), row, 0)
+        self.timeout_input = QLineEdit()
+        self.timeout_input.setText("5")
+        self.timeout_input.setPlaceholderText("Socket超时时间(秒)")
+        self.timeout_input.setMinimumWidth(300)
+        layout.addWidget(self.timeout_input, row, 1)
+        
+        layout.addWidget(QLabel("详细程度:"), row, 2)
+        self.verbose_input = QComboBox()
+        self.verbose_input.addItems(["0", "1", "2"])
+        self.verbose_input.setCurrentText("0")
+        self.verbose_input.setMinimumWidth(300)
+        layout.addWidget(self.verbose_input, row, 3)
+        
+        row += 1
+        layout.addWidget(QLabel("输出文件:"), row, 0)
+        
+        # 创建水平布局来放置输入框和按钮
+        output_file_layout = QHBoxLayout()
+        
+        self.output_file_input = QLineEdit()
+        self.output_file_input.setPlaceholderText("保存扫描结果的文件路径")
+        self.output_file_input.setMinimumWidth(240)
+        output_file_layout.addWidget(self.output_file_input)
+        
+        # 添加选择文件按钮
+        output_file_btn = QPushButton("选择")
+        output_file_btn.setFixedWidth(60)
+        output_file_btn.clicked.connect(self.choose_output_file)
+        output_file_layout.addWidget(output_file_btn)
+        
+        # 将水平布局添加到网格布局中
+        layout.addLayout(output_file_layout, row, 1)
+        
+        layout.addWidget(QLabel("IP输出文件:"), row, 2)
+        
+        # 创建水平布局来放置输入框和按钮
+        output_ip_file_layout = QHBoxLayout()
+        
+        self.output_ip_file_input = QLineEdit()
+        self.output_ip_file_input.setPlaceholderText("保存发现的IP的文件路径")
+        self.output_ip_file_input.setMinimumWidth(240)
+        output_ip_file_layout.addWidget(self.output_ip_file_input)
+        
+        # 添加选择文件按钮
+        output_ip_file_btn = QPushButton("选择")
+        output_ip_file_btn.setFixedWidth(60)
+        output_ip_file_btn.clicked.connect(self.choose_output_ip_file)
+        output_ip_file_layout.addWidget(output_ip_file_btn)
+        
+        # 将水平布局添加到网格布局中
+        layout.addLayout(output_ip_file_layout, row, 3)
+         
+        # 添加按钮布局
+        row += 1
+        button_layout = QHBoxLayout()
+        
+        # 开始按钮
+        self.start_btn = QPushButton("开始扫描")
+        self.start_btn.clicked.connect(self.start_module)
+        button_layout.addWidget(self.start_btn)
+        
+        # 停止按钮
+        self.stop_btn = QPushButton("停止扫描")
+        self.stop_btn.clicked.connect(self.main_window.stop_module)
+        self.stop_btn.setEnabled(False)  # 初始状态禁用
+        button_layout.addWidget(self.stop_btn)
+        
+        # 将按钮布局添加到主布局
+        layout.addLayout(button_layout, row, 0, 1, 4)
+        
+        # 使用QTextEdit显示结果
+        row += 1
+        self.create_result_text(layout, row)
+    
+    def choose_ip_file(self):
+        """选择IP列表文件"""
+        file_name, _ = QFileDialog.getOpenFileName(
+            self,
+            "选择IP列表文件",
+            "",
+            "文本文件 (*.txt);;所有文件 (*.*)"
+        )
+        if file_name:
+            self.file_input.setText(file_name)
+    
+    def choose_output_file(self):
+        """选择输出文件"""
+        file_name, _ = QFileDialog.getSaveFileName(
+            self,
+            "选择输出文件",
+            "",
+            "文本文件 (*.txt);;所有文件 (*.*)"
+        )
+        if file_name:
+            self.output_file_input.setText(file_name)
+    
+    def choose_output_ip_file(self):
+        """选择IP输出文件"""
+        file_name, _ = QFileDialog.getSaveFileName(
+            self,
+            "选择IP输出文件",
+            "",
+            "文本文件 (*.txt);;所有文件 (*.*)"
+        )
+        if file_name:
+            self.output_ip_file_input.setText(file_name)
+    
+    def start_module(self):
+        """启动SIP扫描模块"""
+        # 清空结果文本
+        self.result_text.clear()
+        
+        # 创建模块实例
+        from sippts.gui.uitools import UiTools
+        self.module_instance = SipScan()
+        
+        # 设置参数
+        UiTools.set_option_scan(self.module_instance, "ip", self.ip_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "rport", self.port_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "file", self.file_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "proto", self.proto_input.currentText(), False, True)
+        UiTools.set_option_scan(self.module_instance, "proxy", self.proxy_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "method", self.method_input.currentText(), False, True)
+        UiTools.set_option_scan(self.module_instance, "domain", self.domain_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "contact_domain", self.contact_domain_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "from_name", self.from_name_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "from_user", self.from_user_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "from_domain", self.from_domain_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "to_name", self.to_name_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "to_user", self.to_user_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "to_domain", self.to_domain_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "ua", self.ua_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "threads", self.threads_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "timeout", self.timeout_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "verbose", self.verbose_input.currentText(), False, True)
+        UiTools.set_option_scan(self.module_instance, "output_file", self.output_file_input.text(), False, True)
+        UiTools.set_option_scan(self.module_instance, "output_ip_file", self.output_ip_file_input.text(), False, True)
+        
+        # 更新UI状态
+        self.on_module_started()
+        
+        # 启动模块
+        self.main_window.run_module(
+            self.module_instance, 
+            self.on_module_finished
+        ) 

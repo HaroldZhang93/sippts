@@ -665,7 +665,7 @@ class MainWindow(QMainWindow):
         
         layout.addWidget(QLabel("Contact域名:"), row, 2)
         self.crack_contact_domain_input = QLineEdit()
-        self.crack_contact_domain_input.setText("192.168.4.66")
+        self.crack_contact_domain_input.setText("192.168.100.99")
         self.crack_contact_domain_input.setPlaceholderText("Contact头域名或IP")
         self.crack_contact_domain_input.setMinimumWidth(300)
         layout.addWidget(self.crack_contact_domain_input, row, 3)
@@ -1227,7 +1227,7 @@ class MainWindow(QMainWindow):
         row = 0
         layout.addWidget(QLabel("目标 IP:"), row, 0)
         self.flood_ip_input = QLineEdit()
-        self.flood_ip_input.setText("192.168.4.200")
+        self.flood_ip_input.setText("192.168.100.10")
         self.flood_ip_input.setPlaceholderText("目标主机IP地址")
         self.flood_ip_input.setMinimumWidth(300)
         layout.addWidget(self.flood_ip_input, row, 1)
@@ -1265,6 +1265,7 @@ class MainWindow(QMainWindow):
         self.flood_domain_input = QLineEdit()
         self.flood_domain_input.setPlaceholderText("SIP域名或IP (默认: 目标IP)")
         self.flood_domain_input.setMinimumWidth(300)
+        self.flood_domain_input.setText("dra.ims.sdt")
         layout.addWidget(self.flood_domain_input, row, 3)
         
         row += 1
@@ -1677,7 +1678,7 @@ class MainWindow(QMainWindow):
         row = 0
         layout.addWidget(QLabel("目标 IP:"), row, 0)
         self.rtpbleedinject_ip_input = QLineEdit()
-        self.rtpbleedinject_ip_input.setText("192.168.4.200")
+        self.rtpbleedinject_ip_input.setText("192.168.100.99")
         self.rtpbleedinject_ip_input.setPlaceholderText("目标主机IP地址")
         self.rtpbleedinject_ip_input.setMinimumWidth(300)
         layout.addWidget(self.rtpbleedinject_ip_input, row, 1)
@@ -1751,6 +1752,13 @@ class MainWindow(QMainWindow):
         self.rtpbleedinject_loop_input.setMinimumWidth(300)
         layout.addWidget(self.rtpbleedinject_loop_input, row, 1)
         
+        layout.addWidget(QLabel("强制注入:"), row, 2)
+        self.rtpbleedinject_force_input = QComboBox()
+        self.rtpbleedinject_force_input.addItems(["否", "是"])
+        self.rtpbleedinject_force_input.setCurrentText("否")
+        self.rtpbleedinject_force_input.setMinimumWidth(300)
+        layout.addWidget(self.rtpbleedinject_force_input, row, 3)
+        
         # 添加按钮布局
         row += 1
         button_layout = QHBoxLayout()
@@ -1810,7 +1818,8 @@ class MainWindow(QMainWindow):
         UiTools.set_option_rtpbleedinject(self.mod, "payload", self.rtpbleedinject_payload_input.currentText(), False, True)
         UiTools.set_option_rtpbleedinject(self.mod, "file", self.rtpbleedinject_file_input.text(), False, True)
         UiTools.set_option_rtpbleedinject(self.mod, "loop", self.rtpbleedinject_loop_input.currentText(), False, True)
-        
+        UiTools.set_option_rtpbleedinject(self.mod, "force", self.rtpbleedinject_force_input.currentText(), False, True)
+
         # 切换按钮状态
         self.rtpbleedinject_start_btn.setEnabled(False)
         self.rtpbleedinject_stop_btn.setEnabled(True)

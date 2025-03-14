@@ -55,7 +55,13 @@ def searchInterface():
         data = netifaces.ifaddresses(iface)
         if str(data).find(local_ip) != -1:
             networkInterface = iface
-
+    
+    # 在Windows系统上，确保返回完整的设备路径
+    if platform.system() == "Windows" and networkInterface and not networkInterface.startswith("\\Device\\NPF_"):
+        # 检查是否只是GUID
+        if networkInterface.startswith("{") and networkInterface.endswith("}"):
+            networkInterface = f"\\Device\\NPF_{networkInterface}"
+    
     return networkInterface
 
 
@@ -621,7 +627,7 @@ def parse_message(buffer):
             else:
                 data["sipport"] = "5060"
 
-        m = re.search(r"^From:\s*.*\<sip:([a-z|A-z|0-9|_]*)\@.*", header)
+        m = re.search(r"^From:\s*.*\<sip:([a-z|A-z|0-9|_|\+]*)\@.*", header)
         if m:
             data["fromuser"] = "%s" % (m.group(1))
 

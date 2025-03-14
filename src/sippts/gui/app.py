@@ -1,13 +1,13 @@
 import sys
-from PyQt6.QtWidgets import QApplication
-from sippts.gui.main_window import MainWindow
+from PyQt5.QtWidgets import QApplication
+from sippts.gui.main_window_new import MainWindow
 
 def run_gui():
     """启动GUI应用"""
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
-    sys.exit(app.exec()) 
+    sys.exit(app.exec_()) 
     
 if __name__ == "__main__":
     run_gui()
