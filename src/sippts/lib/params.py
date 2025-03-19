@@ -1183,6 +1183,14 @@ Usage examples:
         default="",
     )
     other.add_argument(
+        "-spoof-ip",
+        metavar="IP",
+        type=str,
+        help="Set spoofed source IP address for IP layer (requires root/admin)",
+        dest="spoof_ip",
+        default="",
+    )
+    other.add_argument(
         "-h", "--help", help="Show this help", dest="help", action="count"
     )
 
@@ -3616,6 +3624,7 @@ Payloads
         NOCONTACT = args.nocontact
         TIMEOUT = args.timeout
         VERBOSE = args.verbose
+        SPOOF_IP = args.spoof_ip
 
         return (
             COMMAND,
@@ -3655,6 +3664,7 @@ Payloads
             NOCONTACT,
             TIMEOUT,
             VERBOSE,
+            SPOOF_IP,
         )
     elif COMMAND == "wssend":
         if args.help == 1:

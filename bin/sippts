@@ -261,6 +261,7 @@ def main():
             nocontact,
             timeout,
             verbose,
+            spoof_ip,
         ) = params
 
         from sippts.sipsend import SipSend
@@ -302,6 +303,7 @@ def main():
         s.nocontact = nocontact
         s.timeout = timeout
         s.verbose = verbose
+        s.spoof_ip = spoof_ip
     elif params[0] == "enumerate":
         (
             cmd,

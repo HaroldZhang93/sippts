@@ -33,7 +33,7 @@ class SendTab(BaseTab):
         layout.addWidget(QLabel("目标 IP:"), row, 0)
         self.ip_input = QLineEdit()
         self.ip_input.setPlaceholderText("目标主机IP地址")
-        self.ip_input.setText("20.50.1.10")
+        self.ip_input.setText("192.168.100.144")
         self.ip_input.setMinimumWidth(200)
         layout.addWidget(self.ip_input, row, 1)
         
@@ -56,6 +56,19 @@ class SendTab(BaseTab):
         self.local_ip_input.setPlaceholderText("本地IP地址(可选)")
         self.local_ip_input.setMinimumWidth(200)
         layout.addWidget(self.local_ip_input, row, 3)
+        
+        row += 1
+        layout.addWidget(QLabel("伪造源IP:"), row, 0)
+        self.spoof_ip_input = QLineEdit()
+        self.spoof_ip_input.setPlaceholderText("伪造的源IP地址(需要管理员权限)")
+        self.spoof_ip_input.setText("20.50.1.10")
+        self.spoof_ip_input.setMinimumWidth(200)
+        layout.addWidget(self.spoof_ip_input, row, 1)
+        
+        # 添加提示标签
+        spoof_tip = QLabel("注意: IP欺骗仅适用于UDP协议，需要管理员权限")
+        spoof_tip.setStyleSheet("color: #FF5555; font-size: 10px;")
+        layout.addWidget(spoof_tip, row, 2, 1, 2)
         
         row += 1
         layout.addWidget(QLabel("模板文件:"), row, 0)
@@ -373,6 +386,7 @@ class SendTab(BaseTab):
         UiTools.set_option_send(self.module_instance, "callid", self.callid_input.text(), False, False)
         UiTools.set_option_send(self.module_instance, "cseq", self.cseq_input.text(), False, False)
         UiTools.set_option_send(self.module_instance, "header", self.header_input.text(), False, False)
+        UiTools.set_option_send(self.module_instance, "spoof_ip", self.spoof_ip_input.text(), False, False)
         
         # 设置SDP选项
         if self.sdp_check.isChecked():

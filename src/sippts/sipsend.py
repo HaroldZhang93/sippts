@@ -10,6 +10,9 @@ __email__ = "pepeluxx@gmail.com"
 import socket
 import sys
 import ssl
+import threading
+import time
+from scapy.all import IP, UDP, Raw, send, sniff
 from .lib.functions import (
     create_message,
     get_free_port,
@@ -62,6 +65,9 @@ class SipSend:
         self.nocontact = 0
         self.timeout = 5
         self.verbose = 0
+        self.spoof_ip = ""
+        self.use_scapy = False
+        self.stop_sniffing = False
 
         self.withcontact = 1
 
@@ -116,6 +122,14 @@ class SipSend:
                 print(self.c.WHITE)
                 exit()
 
+        # 检查是否使用IP欺骗
+        if self.spoof_ip and self.spoof_ip != "":
+            self.use_scapy = True
+            print(f"{self.c.BWHITE}[✓] Using IP spoofing: {self.c.GREEN}{self.spoof_ip}")
+            if self.proto != "UDP":
+                print(f"{self.c.BRED}IP spoofing only works with UDP protocol. Switching to UDP.")
+                self.proto = "UDP"
+
         # if rport is by default but we want to scan TLS protocol, use port 5061
         if self.rport == 5060 and self.proto == "TLS":
             self.rport = 5061
@@ -135,15 +149,17 @@ class SipSend:
         if self.method == "INVITE" and self.timeout == 5:
             self.timeout = 30
 
-        try:
-            if self.proto == "UDP":
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            else:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        except socket.error:
-            print(f"{self.c.RED}Failed to create socket")
-            print(self.c.WHITE)
-            sys.exit(1)
+        # 如果使用scapy发送，则不需要创建普通socket
+        if not self.use_scapy:
+            try:
+                if self.proto == "UDP":
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                else:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            except socket.error:
+                print(f"{self.c.RED}Failed to create socket")
+                print(self.c.WHITE)
+                sys.exit(1)
 
         logo = Logo("sipsend")
         logo.print()
@@ -264,11 +280,13 @@ class SipSend:
         else:
             lport = self.lport
 
-        try:
-            sock.bind((bind, lport))
-        except:
-            lport = get_free_port()
-            sock.bind((bind, lport))
+        # 如果不使用scapy，则绑定socket
+        if not self.use_scapy:
+            try:
+                sock.bind((bind, lport))
+            except:
+                lport = get_free_port()
+                sock.bind((bind, lport))
 
         if self.proxy == "":
             host = (str(self.ip), int(self.rport))
@@ -343,129 +361,230 @@ class SipSend:
             )
 
         try:
-            sock.settimeout(self.timeout)
-
-            if self.proto == "TCP":
-                sock.connect(host)
-
-            if self.proto == "TLS":
-                context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                context.check_hostname = False
-                context.verify_mode = ssl.CERT_NONE
-                context.load_default_certs()
-
-                sock_ssl = context.wrap_socket(sock, server_hostname=str(host[0]))
-                sock_ssl.connect(host)
-                sock_ssl.sendall(bytes(msg[:8192], "utf-8"))
+            # 如果使用scapy发送，则使用scapy方法
+            if self.use_scapy:
+                self.send_with_scapy(msg, host, lport)
             else:
-                sock.sendto(bytes(msg[:8192], "utf-8"), host)
+                sock.settimeout(self.timeout)
 
-            if self.verbose == 1:
-                print(
-                    f"{self.c.BWHITE}[+] Sending to {self.ip}:{self.rport}/{self.proto} ..."
-                )
-                print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
-            else:
-                print(f"{self.c.BYELLOW}[=>] Request {self.method}")
+                if self.proto == "TCP":
+                    sock.connect(host)
 
-            if self.ofile != "":
-                fw.write(
-                    "[+] Sending to %s:%s/%s ...\n" % (self.ip, self.rport, self.proto)
-                )
-                fw.write(msg + "\n")
-
-            rescode = "100"
-
-            while rescode[:1] == "1":
-                # receive temporary code
                 if self.proto == "TLS":
-                    resp = sock_ssl.recv(4096)
+                    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                    context.check_hostname = False
+                    context.verify_mode = ssl.CERT_NONE
+                    context.load_default_certs()
+
+                    sock_ssl = context.wrap_socket(sock, server_hostname=str(host[0]))
+                    sock_ssl.connect(host)
+                    sock_ssl.sendall(bytes(msg[:8192], "utf-8"))
                 else:
-                    resp = sock.recv(4096)
+                    sock.sendto(bytes(msg[:8192], "utf-8"), host)
 
-                headers = parse_message(resp.decode())
-
-                if headers:
-                    via = headers["via"]
-
-                    response = "%s %s" % (
-                        headers["response_code"],
-                        headers["response_text"],
+                if self.verbose == 1:
+                    print(
+                        f"{self.c.BWHITE}[+] Sending to {self.ip}:{self.rport}/{self.proto} ..."
                     )
-                    rescode = headers["response_code"]
-                    if self.verbose == 1:
-                        print(
-                            f"{self.c.BWHITE}[-] Receiving from {self.ip}:{self.rport}/{self.proto} ..."
-                        )
-                        print(f"{self.c.GREEN}{resp.decode()}{self.c.WHITE}")
+                    print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
+                else:
+                    print(f"{self.c.BYELLOW}[=>] Request {self.method}")
+
+                if self.ofile != "":
+                    fw.write(
+                        "[+] Sending to %s:%s/%s ...\n" % (self.ip, self.rport, self.proto)
+                    )
+                    fw.write(msg + "\n")
+
+                rescode = "100"
+
+                while rescode[:1] == "1":
+                    # receive temporary code
+                    if self.proto == "TLS":
+                        resp = sock_ssl.recv(4096)
                     else:
-                        print(f"{self.c.BGREEN}[<=] Response {response}")
+                        resp = sock.recv(4096)
 
-                    if self.ofile != "":
-                        fw.write(
-                            "[-] Receiving from %s:%s/%s ...\n"
-                            % (self.ip, self.rport, self.proto)
+                    headers = parse_message(resp.decode())
+
+                    if headers:
+                        via = headers["via"]
+
+                        response = "%s %s" % (
+                            headers["response_code"],
+                            headers["response_text"],
                         )
-                        fw.write(resp.decode() + "\n")
+                        rescode = headers["response_code"]
+                        if self.verbose == 1:
+                            print(
+                                f"{self.c.BWHITE}[-] Receiving from {self.ip}:{self.rport}/{self.proto} ..."
+                            )
+                            print(f"{self.c.GREEN}{resp.decode()}{self.c.WHITE}")
+                        else:
+                            print(f"{self.c.BGREEN}[<=] Response {response}")
 
+                        if self.ofile != "":
+                            fw.write(
+                                "[-] Receiving from %s:%s/%s ...\n"
+                                % (self.ip, self.rport, self.proto)
+                            )
+                            fw.write(resp.decode() + "\n")
+
+                        totag = headers["totag"]
+
+                if (
+                    self.user != ""
+                    and self.pwd != ""
+                    and (
+                        headers["response_code"] == "401"
+                        or headers["response_code"] == "407"
+                    )
+                ):
+                    if headers["auth"] != "":
+                        auth = headers["auth"]
+                        auth_type = headers["auth-type"]
+                        headers = parse_digest(auth)
+                        realm = headers["realm"]
+                        nonce = headers["nonce"]
+                        uri = "sip:%s@%s" % (self.to_user, self.domain)
+                        algorithm = headers["algorithm"]
+                        cnonce = headers["cnonce"]
+                        nc = headers["nc"]
+                        qop = headers["qop"]
+
+                        if qop != "" and cnonce == "":
+                            cnonce = generate_random_string(8, 8, "ascii")
+                        if qop != "" and nc == "":
+                            nc = "00000001"
+
+                        response = calculateHash(
+                            self.user,
+                            realm,
+                            self.pwd,
+                            self.method,
+                            uri,
+                            nonce,
+                            algorithm,
+                            cnonce,
+                            nc,
+                            qop,
+                            0,
+                            "",
+                        )
+
+                        digest = (
+                            'Digest username="%s", realm="%s", nonce="%s", uri="%s", response="%s", algorithm=%s'
+                            % (self.user, realm, nonce, uri, response, algorithm)
+                        )
+                        if qop != "":
+                            digest += ", qop=%s" % qop
+                        if cnonce != "":
+                            digest += ', cnonce="%s"' % cnonce
+                        if nc != "":
+                            digest += ", nc=%s" % nc
+
+                        self.branch = generate_random_string(71, 71, "ascii")
+                        self.cseq = str(int(self.cseq) + 1)
+
+                        msg = create_message(
+                            self.method,
+                            self.localip,
+                            self.contact_domain,
+                            self.from_user,
+                            self.from_name,
+                            self.from_domain,
+                            self.to_user,
+                            self.to_name,
+                            self.to_domain,
+                            self.proto,
+                            self.domain,
+                            self.user_agent,
+                            lport,
+                            self.branch,
+                            self.callid,
+                            self.from_tag,
+                            self.cseq,
+                            self.to_tag,
+                            digest,
+                            auth_type,
+                            "",
+                            self.sdp,
+                            via,
+                            self.route,
+                            self.ppi,
+                            self.pai,
+                            self.header,
+                            self.withcontact,
+                        )
+
+                        try:
+                            if self.use_scapy:
+                                self.send_with_scapy(msg, host, lport, "(AUTH)")
+                            else:
+                                if self.proto == "TLS":
+                                    sock_ssl.sendall(bytes(msg[:8192], "utf-8"))
+                                else:
+                                    sock.sendto(bytes(msg[:8192], "utf-8"), host)
+
+                                # Send AUTH
+                                if self.verbose == 1:
+                                    print(
+                                        f"{self.c.BWHITE}[+] Sending to {self.ip}:{self.rport}/{self.proto} ..."
+                                    )
+                                    print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
+                                else:
+                                    print(f"{self.c.BYELLOW}[=>] Request {self.method} (AUTH)")
+
+                                if self.ofile != "":
+                                    fw.write(
+                                        "[+] Sending to %s:%s/%s ...\n"
+                                        % (self.ip, self.rport, self.proto)
+                                    )
+                                    fw.write(msg + "\n")
+
+                            rescode = "100"
+
+                            while rescode[:1] == "1":
+                                # receive temporary code
+                                if self.proto == "TLS":
+                                    resp = sock_ssl.recv(4096)
+                                else:
+                                    resp = sock.recv(4096)
+
+                                headers = parse_message(resp.decode())
+
+                                if headers and headers["response_code"] != "":
+                                    response = "%s %s" % (
+                                        headers["response_code"],
+                                        headers["response_text"],
+                                    )
+                                    rescode = headers["response_code"]
+                                    if self.verbose == 1:
+                                        print(
+                                            f"{self.c.BWHITE}[-] Receiving from {self.ip}:{self.rport}/{self.proto} ..."
+                                        )
+                                        print(
+                                            f"{self.c.GREEN}{resp.decode()}{self.c.WHITE}"
+                                        )
+                                    else:
+                                        print(f"{self.c.BGREEN}'[<=] Response {response}")
+
+                                    if self.ofile != "":
+                                        fw.write(
+                                            "[-] Receiving from %s:%s/%s ...\n"
+                                            % (self.ip, self.rport, self.proto)
+                                        )
+                                        fw.write(resp.decode() + "\n")
+                        except:
+                            print(self.c.WHITE)
+
+                # receive 200 Ok - call answered
+                if headers["response_code"] == "200":
                     totag = headers["totag"]
 
-            if (
-                self.user != ""
-                and self.pwd != ""
-                and (
-                    headers["response_code"] == "401"
-                    or headers["response_code"] == "407"
-                )
-            ):
-                if headers["auth"] != "":
-                    auth = headers["auth"]
-                    auth_type = headers["auth-type"]
-                    headers = parse_digest(auth)
-                    realm = headers["realm"]
-                    nonce = headers["nonce"]
-                    uri = "sip:%s@%s" % (self.to_user, self.domain)
-                    algorithm = headers["algorithm"]
-                    cnonce = headers["cnonce"]
-                    nc = headers["nc"]
-                    qop = headers["qop"]
-
-                    if qop != "" and cnonce == "":
-                        cnonce = generate_random_string(8, 8, "ascii")
-                    if qop != "" and nc == "":
-                        nc = "00000001"
-
-                    response = calculateHash(
-                        self.user,
-                        realm,
-                        self.pwd,
-                        self.method,
-                        uri,
-                        nonce,
-                        algorithm,
-                        cnonce,
-                        nc,
-                        qop,
-                        0,
-                        "",
-                    )
-
-                    digest = (
-                        'Digest username="%s", realm="%s", nonce="%s", uri="%s", response="%s", algorithm=%s'
-                        % (self.user, realm, nonce, uri, response, algorithm)
-                    )
-                    if qop != "":
-                        digest += ", qop=%s" % qop
-                    if cnonce != "":
-                        digest += ', cnonce="%s"' % cnonce
-                    if nc != "":
-                        digest += ", nc=%s" % nc
-
-                    self.branch = generate_random_string(71, 71, "ascii")
-                    self.cseq = str(int(self.cseq) + 1)
-
+                    # send ACK
                     msg = create_message(
-                        self.method,
+                        "ACK",
                         self.localip,
                         self.contact_domain,
                         self.from_user,
@@ -482,142 +601,142 @@ class SipSend:
                         self.callid,
                         self.from_tag,
                         self.cseq,
-                        self.to_tag,
-                        digest,
-                        auth_type,
+                        totag,
                         "",
-                        self.sdp,
+                        1,
+                        "",
+                        0,
                         via,
                         self.route,
-                        self.ppi,
-                        self.pai,
+                        "",
+                        "",
                         self.header,
                         self.withcontact,
                     )
 
-                    try:
+                    if self.verbose == 1:
+                        print(
+                            f"{self.c.BWHITE}[+] Sending to {self.ip}:{self.rport}/{self.proto} ..."
+                        )
+                        print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
+                    else:
+                        print(f"{self.c.BYELLOW}[=>] Request ACK")
+
+                    if self.ofile != "":
+                        fw.write("[+] Request ACK\n")
+                        fw.write(msg + "\n")
+
+                    if self.use_scapy:
+                        self.send_with_scapy(msg, host, lport, "ACK")
+                    else:
                         if self.proto == "TLS":
                             sock_ssl.sendall(bytes(msg[:8192], "utf-8"))
                         else:
                             sock.sendto(bytes(msg[:8192], "utf-8"), host)
 
-                        # Send AUTH
-                        if self.verbose == 1:
-                            print(
-                                f"{self.c.BWHITE}[+] Sending to {self.ip}:{self.rport}/{self.proto} ..."
-                            )
-                            print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
-                        else:
-                            print(f"{self.c.BYELLOW}[=>] Request {self.method} (AUTH)")
-
-                        if self.ofile != "":
-                            fw.write(
-                                "[+] Sending to %s:%s/%s ...\n"
-                                % (self.ip, self.rport, self.proto)
-                            )
-                            fw.write(msg + "\n")
-
-                        rescode = "100"
-
-                        while rescode[:1] == "1":
-                            # receive temporary code
-                            if self.proto == "TLS":
-                                resp = sock_ssl.recv(4096)
-                            else:
-                                resp = sock.recv(4096)
-
-                            headers = parse_message(resp.decode())
-
-                            if headers and headers["response_code"] != "":
-                                response = "%s %s" % (
-                                    headers["response_code"],
-                                    headers["response_text"],
-                                )
-                                rescode = headers["response_code"]
-                                if self.verbose == 1:
-                                    print(
-                                        f"{self.c.BWHITE}[-] Receiving from {self.ip}:{self.rport}/{self.proto} ..."
-                                    )
-                                    print(
-                                        f"{self.c.GREEN}{resp.decode()}{self.c.WHITE}"
-                                    )
-                                else:
-                                    print(f"{self.c.BGREEN}'[<=] Response {response}")
-
-                                if self.ofile != "":
-                                    fw.write(
-                                        "[-] Receiving from %s:%s/%s ...\n"
-                                        % (self.ip, self.rport, self.proto)
-                                    )
-                                    fw.write(resp.decode() + "\n")
-                    except:
-                        print(self.c.WHITE)
-
-            # receive 200 Ok - call answered
-            if headers["response_code"] == "200":
-                totag = headers["totag"]
-
-                # send ACK
-                msg = create_message(
-                    "ACK",
-                    self.localip,
-                    self.contact_domain,
-                    self.from_user,
-                    self.from_name,
-                    self.from_domain,
-                    self.to_user,
-                    self.to_name,
-                    self.to_domain,
-                    self.proto,
-                    self.domain,
-                    self.user_agent,
-                    lport,
-                    self.branch,
-                    self.callid,
-                    self.from_tag,
-                    self.cseq,
-                    totag,
-                    "",
-                    1,
-                    "",
-                    0,
-                    via,
-                    self.route,
-                    "",
-                    "",
-                    self.header,
-                    self.withcontact,
-                )
-
-                if self.verbose == 1:
-                    print(
-                        f"{self.c.BWHITE}[+] Sending to {self.ip}:{self.rport}/{self.proto} ..."
-                    )
-                    print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
-                else:
-                    print(f"{self.c.BYELLOW}[=>] Request ACK")
-
-                if self.ofile != "":
-                    fw.write("[+] Request ACK\n")
-                    fw.write(msg + "\n")
-
-                if self.proto == "TLS":
-                    sock_ssl.sendall(bytes(msg[:8192], "utf-8"))
-                else:
-                    sock.sendto(bytes(msg[:8192], "utf-8"), host)
-
         except socket.timeout:
             pass
-        except:
-            print(f"{self.c.RED}[!] Socket connection error\n{self.c.WHITE}")
+        except Exception as e:
+            print(f"{self.c.RED}[!] Error: {str(e)}\n{self.c.WHITE}")
             pass
         finally:
-            sock.close()
+            if not self.use_scapy and 'sock' in locals():
+                sock.close()
+            
+            # 停止嗅探线程
+            if self.use_scapy:
+                self.stop_sniffing = True
+                time.sleep(1)  # 给嗅探线程一些时间来结束
 
         if self.ofile != "":
             fw.close()
+    
+    # 新增: 使用scapy发送带有伪造源IP的SIP消息
+    def send_with_scapy(self, msg, host, lport, method_suffix=""):
+        target_ip = host[0]
+        target_port = host[1]
+        source_ip = self.spoof_ip if self.spoof_ip else self.localip
+        
+        # 启动嗅探线程来捕获响应
+        self.stop_sniffing = False
+        sniff_thread = threading.Thread(target=self.sniffer, args=(target_ip, lport))
+        sniff_thread.daemon = True
+        sniff_thread.start()
+        
+        # 构造和发送数据包
+        packet = IP(src=source_ip, dst=target_ip) / \
+                UDP(sport=lport, dport=target_port) / \
+                Raw(load=msg)
+        
+        # 发送数据包
+        send(packet, verbose=0)
+        
+        if self.verbose == 1:
+            print(
+                f"{self.c.BWHITE}[+] Sending to {target_ip}:{target_port}/UDP with spoofed IP {source_ip} ..."
+            )
+            print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
+        else:
+            if method_suffix:
+                print(f"{self.c.BYELLOW}[=>] Request {method_suffix}")
+            else:
+                print(f"{self.c.BYELLOW}[=>] Request {self.method}")
+        
+        # 等待响应
+        timeout = self.timeout
+        while timeout > 0 and not self.stop_sniffing:
+            time.sleep(1)
+            timeout -= 1
+    
+    # 新增: 嗅探器回调函数
+    def packet_callback(self, pkt):
+        print(f"packet: {pkt}")
+        if pkt.haslayer(UDP) and pkt.haslayer(Raw):
+            if pkt[IP].src == self.ip and (pkt[UDP].sport == int(self.rport) or pkt[UDP].sport == 5060):
+                try:
+                    response = pkt[Raw].load.decode('utf-8', errors='ignore')
+                    headers = parse_message(response)
+                    
+                    if headers:
+                        response_text = "%s %s" % (
+                            headers["response_code"],
+                            headers["response_text"],
+                        )
+                        
+                        if self.verbose == 1:
+                            print(
+                                f"{self.c.BWHITE}[-] Receiving from {self.ip}:{self.rport}/UDP ..."
+                            )
+                            print(f"{self.c.GREEN}{response}{self.c.WHITE}")
+                        else:
+                            print(f"{self.c.BGREEN}[<=] Response {response_text}")
+                        
+                        if self.ofile != "":
+                            with open(self.ofile, "a") as fw:
+                                fw.write(
+                                    "[-] Receiving from %s:%s/UDP ...\n"
+                                    % (self.ip, self.rport)
+                                )
+                                fw.write(response + "\n")
+                        
+                        # 如果收到200 OK，停止嗅探
+                        if headers["response_code"] == "200":
+                            self.stop_sniffing = True
+                except:
+                    pass
+    
+    # 新增: 嗅探器函数
+    def sniffer(self, target_ip, lport):
+        # 使用BPF过滤器只捕获来自目标服务器的UDP流量
+        filter_str = f"udp and src host {target_ip} and dst port {lport} or 5060"
+        try:
+            sniff(filter=filter_str, prn=self.packet_callback, store=0, 
+                  stop_filter=lambda x: self.stop_sniffing, timeout=self.timeout)
+        except Exception as e:
+            print(f"{self.c.RED}[!] Sniffing error: {str(e)}{self.c.WHITE}")
             
     def stop(self):
         self.run = False
+        self.stop_sniffing = True
         print(f"{self.c.BYELLOW}\nYou pressed Ctrl+C!")
         print(self.c.WHITE)
