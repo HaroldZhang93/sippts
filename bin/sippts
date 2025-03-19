@@ -374,6 +374,7 @@ def main():
             ping,
             ppi,
             pai,
+            spoof_ip,
         ) = params
 
         from sippts.sipdigestleak import SipDigestLeak
@@ -406,6 +407,7 @@ def main():
         s.ping = ping
         s.ppi = ppi
         s.pai = pai
+        s.spoof_ip = spoof_ip
     elif params[0] == "ping":
         (
             cmd,

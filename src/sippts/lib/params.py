@@ -1793,6 +1793,14 @@ Usage examples:
         default="",
     )
     other.add_argument(
+        "-spoof-ip",
+        metavar="IP",
+        type=str,
+        help="Set spoofed source IP address for IP layer (requires root/admin)",
+        dest="spoof_ip",
+        default="",
+    )
+    other.add_argument(
         "-ping", help="Ping host before send attack", dest="ping", action="count"
     )
     other.add_argument(
