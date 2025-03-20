@@ -208,6 +208,13 @@ class ScanTab(BaseTab):
         
         # 将水平布局添加到网格布局中
         layout.addLayout(output_ip_file_layout, row, 3)
+        
+        row += 1
+        layout.addWidget(QLabel("伪造源IP:"), row, 0)
+        self.spoof_ip_input = QLineEdit()
+        self.spoof_ip_input.setPlaceholderText("伪造的源IP地址 (仅UDP协议有效)")
+        self.spoof_ip_input.setMinimumWidth(300)
+        layout.addWidget(self.spoof_ip_input, row, 1)
          
         # 添加按钮布局
         row += 1
@@ -294,7 +301,8 @@ class ScanTab(BaseTab):
         UiTools.set_option_scan(self.module_instance, "verbose", self.verbose_input.currentText(), False, True)
         UiTools.set_option_scan(self.module_instance, "output_file", self.output_file_input.text(), False, True)
         UiTools.set_option_scan(self.module_instance, "output_ip_file", self.output_ip_file_input.text(), False, True)
-        
+        UiTools.set_option_scan(self.module_instance, "spoof_ip", self.spoof_ip_input.text(), False, True)
+
         # 更新UI状态
         self.on_module_started()
         

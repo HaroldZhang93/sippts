@@ -15,7 +15,11 @@ import ipaddress
 import ssl
 import re
 import time
+import threading
 from IPy import IP
+from scapy.all import IP as ScapyIP, UDP as ScapyUDP, Raw, send, sniff
+from scapy.arch import get_windows_if_list  # Windows系统
+from scapy.arch import get_if_list          # Linux系统
 
 try:
     import cursor
@@ -87,6 +91,13 @@ class SipScan:
         self.localip = ""
         self.getcve = 0
         self.timeout = 5
+        self.spoof_ip = ""  # 伪造的源IP地址
+        self.use_scapy = False  # 是否使用scapy发送
+        self.stop_sniffing = False  # 控制嗅探线程的停止
+        self.sniff_thread = None  # 嗅探线程
+        self.active_iface = None  # 活跃网络接口
+        self.target_info = {}  # 存储目标信息，格式：{call_id: (ipaddr, port, proto, lport)}
+        self.pending_scans = set()  # 存储正在扫描的目标IP地址集合
 
         self.found = []
         self.ipsfound = []
@@ -108,6 +119,7 @@ class SipScan:
             pass
         print(self.c.WHITE)
         self.quit = True
+        self.stop_sniffing = True  # 确保嗅探线程也停止
 
 
     def set_ulimit(self, threads):
@@ -155,6 +167,51 @@ class SipScan:
         self.proto = self.proto.upper()
         if self.proto == "UDP|TCP|TLS":
             self.proto = "ALL"
+
+        # 检查IP伪造设置
+        if self.spoof_ip and self.spoof_ip != "":
+            self.use_scapy = True
+            print(f"{self.c.BWHITE}[✓] Using IP spoofing: {self.c.GREEN}{self.spoof_ip}")
+            if self.proto != "UDP" and self.proto != "ALL":
+                print(f"{self.c.BRED}IP spoofing only works with UDP protocol. Switching to UDP.")
+                self.proto = "UDP"
+            elif self.proto == "ALL":
+                print(f"{self.c.BYELLOW}[!] IP spoofing will only be used for UDP protocol.")
+        
+        # 为UDP协议启动单一嗅探线程
+        if self.use_scapy:
+            # 获取可用网络接口
+            try:
+                if sys.platform == "win32":
+                    interfaces = get_windows_if_list()
+                    # 选择第一个活跃的接口
+                    for iface in interfaces:
+                        if iface.get('name').startswith('以太网') or iface.get('name').startswith('Ethernet'):
+                            self.active_iface = iface.get('name')
+                            break
+                    if not self.active_iface and interfaces:
+                        self.active_iface = interfaces[0].get('name')
+                else:
+                    # Linux系统
+                    interfaces = get_if_list()
+                    self.active_iface = interfaces[0] if interfaces else None
+                
+                if self.active_iface:
+                    print(f"{self.c.BWHITE}[✓] Using network interface: {self.c.GREEN}{self.active_iface}")
+                    # 启动全局嗅探线程
+                    self.stop_sniffing = False
+                    self.sniff_thread = threading.Thread(target=self.global_sniffer)
+                    self.sniff_thread.daemon = True
+                    self.sniff_thread.start()
+                    # 等待嗅探线程启动
+                    time.sleep(1)
+                    print(f"{self.c.BWHITE}[✓] Global sniffing thread started")
+                else:
+                    print(f"{self.c.RED}[!] No suitable network interface found for sniffing")
+                    self.use_scapy = False
+            except Exception as e:
+                print(f"{self.c.RED}[!] Error setting up sniffing: {str(e)}")
+                self.use_scapy = False
 
         try:
             self.verbose == int(self.verbose)
@@ -542,228 +599,468 @@ class SipScan:
             if self.pos > 3:
                 self.pos = 0
 
-            try:
-                if proto == "UDP":
-                    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                else:
-                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            except socket.error:
-                self.fail += 1
-
-                if self.fail > 50:
-                    print(
-                        f"{self.c.RED}Too many socket connection errors. Consider reducing the number of threads"
-                    )
-                    self.quit = True
-                    return
-                print(f"{self.c.RED}Failed to create socket")
-                return
-
-            bind = "0.0.0.0"
-            lport = get_free_port()
-
-            try:
-                sock.bind((bind, lport))
-            except:
-                lport = get_free_port()
-                sock.bind((bind, lport))
-
-            if self.proxy == "":
-                host = (str(ipaddr), port)
-            else:
-                if self.proxy.find(":") > 0:
-                    (proxy_ip, proxy_port) = self.proxy.split(":")
-                else:
-                    proxy_ip = self.proxy
-                    proxy_port = "5060"
-
-                host = (str(proxy_ip), int(proxy_port))
-
-            domain = self.domain
-            if domain == "":
-                domain = ipaddr
-
-            contact_domain = self.contact_domain
-            if contact_domain == "":
-                contact_domain = "10.0.0.1"
-
-            fdomain = self.from_domain
-            tdomain = self.to_domain
-
-            if not self.from_domain or self.from_domain == "":
-                fdomain = self.domain
-            if not self.to_domain or self.to_domain == "":
-                tdomain = self.domain
-
-            if self.method == "REGISTER":
-                if self.to_user == "100" and self.from_user != "100":
-                    self.to_user = self.from_user
-                if self.to_user != "100" and self.from_user == "100":
-                    self.from_user = self.to_user
-
-            if self.proxy != "":
-                self.route = "<sip:%s;lr>" % self.proxy
-
-            msg = create_message(
-                self.method,
-                "",
-                contact_domain,
-                self.from_user,
-                self.from_name,
-                fdomain,
-                self.to_user,
-                self.to_name,
-                tdomain,
-                proto,
-                domain,
-                self.user_agent,
-                lport,
-                "",
-                "",
-                "",
-                "1",
-                "",
-                "",
-                1,
-                "",
-                0,
-                "",
-                self.route,
-                self.ppi,
-                self.pai,
-                "",
-                1,
-            )
-
-            try:
-                sock.settimeout(self.timeout)
-
-                if proto == "TCP":
-                    sock.connect(host)
-
-                if proto == "TLS":
-                    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                    context.check_hostname = False
-                    context.verify_mode = ssl.CERT_NONE
-                    context.load_default_certs()
-
-                    sock_ssl = context.wrap_socket(sock, server_hostname=str(host[0]))
-                    sock_ssl.connect(host)
-                    sock_ssl.sendall(bytes(msg[:8192], "utf-8"))
-                else:
-                    sock.sendto(bytes(msg[:8192], "utf-8"), (host))
-
-                if self.verbose == 2:
-                    print(
-                        f"{self.c.BWHITE}[+] Sending to {ipaddr}:{str(port)}/{proto} ..."
-                    )
-                    print(f"{self.c.YELLOW}{msg}")
-
-                rescode = "100"
-
-                while rescode[:1] == "1":
-                    # receive temporary code
-                    if proto == "TLS":
-                        resp = sock_ssl.recv(4096)
-                        (ip, rport) = host
+            # 如果不是UDP协议或者不使用IP伪造，使用普通socket方式
+            if proto != "UDP" or not self.use_scapy:
+                try:
+                    if proto == "UDP":
+                        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                     else:
-                        (resp, addr) = sock.recvfrom(4096)
-                        (ip, rport) = host
+                        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                except socket.error:
+                    self.fail += 1
+
+                    if self.fail > 50:
+                        print(
+                            f"{self.c.RED}Too many socket connection errors. Consider reducing the number of threads"
+                        )
+                        self.quit = True
+                        return
+                    print(f"{self.c.RED}Failed to create socket")
+                    return
+
+                bind = "0.0.0.0"
+                lport = get_free_port()
+
+                try:
+                    sock.bind((bind, lport))
+                except:
+                    lport = get_free_port()
+                    sock.bind((bind, lport))
+
+                if self.proxy == "":
+                    host = (str(ipaddr), port)
+                else:
+                    if self.proxy.find(":") > 0:
+                        (proxy_ip, proxy_port) = self.proxy.split(":")
+                    else:
+                        proxy_ip = self.proxy
+                        proxy_port = "5060"
+
+                    host = (str(proxy_ip), int(proxy_port))
+
+                domain = self.domain
+                if domain == "":
+                    domain = ipaddr
+
+                contact_domain = self.contact_domain
+                if contact_domain == "":
+                    contact_domain = "10.0.0.1"
+
+                fdomain = self.from_domain
+                tdomain = self.to_domain
+
+                if not self.from_domain or self.from_domain == "":
+                    fdomain = self.domain
+                if not self.to_domain or self.to_domain == "":
+                    tdomain = self.domain
+
+                if self.method == "REGISTER":
+                    if self.to_user == "100" and self.from_user != "100":
+                        self.to_user = self.from_user
+                    if self.to_user != "100" and self.from_user == "100":
+                        self.from_user = self.to_user
+
+                if self.proxy != "":
+                    self.route = "<sip:%s;lr>" % self.proxy
+
+                msg = create_message(
+                    self.method,
+                    "",
+                    contact_domain,
+                    self.from_user,
+                    self.from_name,
+                    fdomain,
+                    self.to_user,
+                    self.to_name,
+                    tdomain,
+                    proto,
+                    domain,
+                    self.user_agent,
+                    lport,
+                    "",
+                    "",
+                    "",
+                    "1",
+                    "",
+                    "",
+                    1,
+                    "",
+                    0,
+                    "",
+                    self.route,
+                    self.ppi,
+                    self.pai,
+                    "",
+                    1,
+                )
+
+                try:
+                    sock.settimeout(self.timeout)
+
+                    if proto == "TCP":
+                        sock.connect(host)
+
+                    if proto == "TLS":
+                        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                        context.check_hostname = False
+                        context.verify_mode = ssl.CERT_NONE
+                        context.load_default_certs()
+
+                        sock_ssl = context.wrap_socket(sock, server_hostname=str(host[0]))
+                        sock_ssl.connect(host)
+                        sock_ssl.sendall(bytes(msg[:8192], "utf-8"))
+                    else:
+                        sock.sendto(bytes(msg[:8192], "utf-8"), (host))
+
+                    if self.verbose == 2:
+                        print(
+                            f"{self.c.BWHITE}[+] Sending to {ipaddr}:{str(port)}/{proto} ..."
+                        )
+                        print(f"{self.c.YELLOW}{msg}")
+
+                    rescode = "100"
+
+                    while rescode[:1] == "1":
+                        # receive temporary code
+                        if proto == "TLS":
+                            resp = sock_ssl.recv(4096)
+                            (ip, rport) = host
+                        else:
+                            (resp, addr) = sock.recvfrom(4096)
+                            (ip, rport) = host
+
+                        headers = parse_message(resp.decode())
+
+                        if headers and headers["response_code"] != "":
+                            response = "%s %s" % (
+                                headers["response_code"],
+                                headers["response_text"],
+                            )
+                            rescode = headers["response_code"]
+
+                        if self.verbose == 2:
+                            print(
+                                f"{self.c.BWHITE}[-] Receiving from {ipaddr}:{rport}/{proto} ..."
+                            )
+                            print(f"{self.c.GREEN}{resp.decode()}{self.c.WHITE}")
+
+                        if headers["response_code"] == "":
+                            rescode = ""
+                            print(
+                                f"{self.c.RED}\nEmpty response code: {self.c.YELLOW}{ipaddr}:{str(port)}/{proto}: {self.c.CYAN}{resp}\n{self.c.WHITE}"
+                            )
 
                     headers = parse_message(resp.decode())
 
                     if headers and headers["response_code"] != "":
+                        sip_type = headers["type"]
+                        if self.method == "REGISTER":
+                            if headers["response_code"] == "405":
+                                sip_type = "Device"
+                            if headers["response_code"] == "401":
+                                sip_type = "Server"
+
                         response = "%s %s" % (
                             headers["response_code"],
                             headers["response_text"],
                         )
-                        rescode = headers["response_code"]
 
+                        fps = fingerprinting(
+                            self.method, resp.decode(), headers, self.verbose
+                        )
+
+                        fp = ""
+                        for f in fps:
+                            if f == "":
+                                fp = "%s" % f
+                            else:
+                                fp += "/%s" % f
+
+                        if fp[0:1] == "/":
+                            fp = fp[1:]
+
+                        line = "%s###%d###%s###%s###%s###%s###%s" % (
+                            ip,
+                            rport,
+                            proto,
+                            response,
+                            headers["ua"],
+                            sip_type,
+                            fp,
+                        )
+                        self.found.append(line)
+
+                        if self.oifile != "":
+                            if ip not in self.ipsfound:
+                                self.ipsfound.append(ip)
+
+                        if self.verbose == 1:
+                            if headers["ua"] != "":
+                                print(
+                                    f"{self.c.WHITE}Response <{headers['response_code']} {headers['response_text']}> from {ip}:{str(rport)}/{proto} with User-Agent {headers['ua']}"
+                                )
+                            else:
+                                print(
+                                    f"{self.c.WHITE}Response <{headers['response_code']} {headers['response_text']}> from {ip}:{str(rport)}/{proto} without User-Agent"
+                                )
+
+                        if headers["ua"] != "" and self.getcve == 1:
+                            val = check_model(headers["ua"], fp, sip_type, self.cvelist)
+                            if val != "":
+                                for v in val:
+                                    if v not in self.cve:
+                                        self.cve.append(v)
+                except socket.timeout:
+                    pass
+                except Exception as error:
+                    if self.verbose == 2:
+                        print(f"{self.c.RED}\n{error}{self.c.WHITE}")
+                    pass
+                finally:
+                    sock.close()
+
+                    if proto == "TLS":
+                        sock_ssl.close()
+
+                return headers
+            
+            # 使用Scapy发送伪造IP的UDP数据包
+            else:
+                # 获取可用端口
+                lport = get_free_port()
+                
+                # 设置目标地址
+                if self.proxy == "":
+                    target_ip = str(ipaddr)
+                    target_port = port
+                else:
+                    if self.proxy.find(":") > 0:
+                        (proxy_ip, proxy_port) = self.proxy.split(":")
+                    else:
+                        proxy_ip = self.proxy
+                        proxy_port = "5060"
+                    target_ip = str(proxy_ip)
+                    target_port = int(proxy_port)
+                
+                # 设置域名相关参数
+                domain = self.domain
+                if domain == "":
+                    domain = ipaddr
+                
+                contact_domain = self.contact_domain
+                if contact_domain == "":
+                    contact_domain = "10.0.0.1"
+                
+                fdomain = self.from_domain
+                tdomain = self.to_domain
+                
+                if not self.from_domain or self.from_domain == "":
+                    fdomain = self.domain
+                if not self.to_domain or self.to_domain == "":
+                    tdomain = self.domain
+                
+                if self.method == "REGISTER":
+                    if self.to_user == "100" and self.from_user != "100":
+                        self.to_user = self.from_user
+                    if self.to_user != "100" and self.from_user == "100":
+                        self.from_user = self.to_user
+                
+                if self.proxy != "":
+                    self.route = "<sip:%s;lr>" % self.proxy
+                
+                # 创建SIP消息
+                call_id = f"{random.randint(1000000, 9999999)}@{contact_domain}"  # 创建唯一的Call-ID
+                msg = create_message(
+                    self.method,
+                    "",
+                    contact_domain,
+                    self.from_user,
+                    self.from_name,
+                    fdomain,
+                    self.to_user,
+                    self.to_name,
+                    tdomain,
+                    proto,
+                    domain,
+                    self.user_agent,
+                    lport,
+                    "",
+                    call_id,
+                    "",
+                    "1",
+                    "",
+                    "",  # 使用唯一的Call-ID
+                    1,
+                    "",
+                    0,
+                    "",
+                    self.route,
+                    self.ppi,
+                    self.pai,
+                    "",
+                    1,
+                )
+                
+                # 使用Scapy发送数据包
+                try:
+                    # 将当前扫描目标信息添加到目标信息字典，供回调函数使用
+                    self.target_info[call_id] = (ipaddr, port, proto, lport)
+                    self.pending_scans.add(ipaddr)
+                    
+                    # 创建和发送数据包
+                    packet = ScapyIP(src=self.spoof_ip, dst=target_ip) / \
+                             ScapyUDP(sport=lport, dport=target_port) / \
+                             Raw(load=msg)
+                    
+                    send(packet, verbose=0)
+                    
                     if self.verbose == 2:
                         print(
-                            f"{self.c.BWHITE}[-] Receiving from {ipaddr}:{rport}/{proto} ..."
+                            f"{self.c.BWHITE}[+] Sending to {ipaddr}:{str(port)}/{proto} with spoofed IP {self.spoof_ip} ..."
                         )
-                        print(f"{self.c.GREEN}{resp.decode()}{self.c.WHITE}")
-
-                    if headers["response_code"] == "":
-                        rescode = ""
+                        print(f"{self.c.YELLOW}{msg}")
+                    elif self.verbose == 1:
                         print(
-                            f"{self.c.RED}\nEmpty response code: {self.c.YELLOW}{ipaddr}:{str(port)}/{proto}: {self.c.CYAN}{resp}\n{self.c.WHITE}"
+                            f"{self.c.WHITE}Sending {self.method} to {ipaddr}:{str(port)}/{proto} with spoofed IP {self.spoof_ip}"
                         )
+                    
+                except Exception as error:
+                    if self.verbose == 2:
+                        print(f"{self.c.RED}\n{error}{self.c.WHITE}")
+                    pass
+                
+                return None
 
-                headers = parse_message(resp.decode())
-
-                if headers and headers["response_code"] != "":
-                    sip_type = headers["type"]
-                    if self.method == "REGISTER":
-                        if headers["response_code"] == "405":
-                            sip_type = "Device"
-                        if headers["response_code"] == "401":
-                            sip_type = "Server"
-
-                    response = "%s %s" % (
-                        headers["response_code"],
-                        headers["response_text"],
-                    )
-
-                    fps = fingerprinting(
-                        self.method, resp.decode(), headers, self.verbose
-                    )
-
-                    fp = ""
-                    for f in fps:
-                        if f == "":
-                            fp = "%s" % f
-                        else:
-                            fp += "/%s" % f
-
-                    if fp[0:1] == "/":
-                        fp = fp[1:]
-
-                    line = "%s###%d###%s###%s###%s###%s###%s" % (
-                        ip,
-                        rport,
-                        proto,
-                        response,
-                        headers["ua"],
-                        sip_type,
-                        fp,
-                    )
-                    self.found.append(line)
-
-                    if self.oifile != "":
-                        if ip not in self.ipsfound:
-                            self.ipsfound.append(ip)
-
-                    if self.verbose == 1:
-                        if headers["ua"] != "":
-                            print(
-                                f"{self.c.WHITE}Response <{headers['response_code']} {headers['response_text']}> from {ip}:{str(rport)}/{proto} with User-Agent {headers['ua']}"
+    # 全局嗅探器函数
+    def global_sniffer(self):
+        # 构造过滤器，捕获所有UDP包，包括发往伪造IP地址的响应
+        filter_str = f"udp and (port 5060 or dst host {self.spoof_ip})"
+        
+        try:
+            if self.active_iface:
+                print(f"{self.c.BWHITE}[+] Starting global sniffer on interface: {self.active_iface}")
+                
+                # 开始嗅探
+                sniff(filter=filter_str, 
+                      prn=self.global_packet_callback,
+                      store=0,
+                      iface=self.active_iface,
+                      stop_filter=lambda x: self.stop_sniffing)
+            else:
+                print(f"{self.c.RED}[!] No suitable network interface found for sniffing")
+        except Exception as e:
+            if self.verbose == 2:
+                print(f"{self.c.RED}[!] Global sniffing error: {str(e)}{self.c.WHITE}")
+    
+    # 全局数据包回调函数
+    def global_packet_callback(self, pkt):
+        if pkt.haslayer(ScapyUDP) and pkt.haslayer(Raw):
+            try:
+                # 解析SIP消息
+                response = pkt[Raw].load.decode('utf-8', errors='ignore')
+                headers = parse_message(response)
+                
+                if not headers:
+                    return
+                
+                # 获取响应中的Call-ID
+                call_id = headers.get("call_id", "")
+                
+                # 响应可能是另外一个扫描的请求，不是我们的响应
+                if not call_id or call_id not in self.target_info:
+                    # 检查是否是我们发送的请求对应的IP
+                    src_ip = pkt[ScapyIP].src
+                    if src_ip in self.pending_scans:
+                        # 尝试通过IP匹配
+                        for cid, (ipaddr, port, proto, lport) in list(self.target_info.items()):
+                            if ipaddr == src_ip:
+                                # 找到匹配的IP，处理响应
+                                call_id = cid
+                                break
+                
+                if call_id and call_id in self.target_info:
+                    # 获取目标信息
+                    scan_ip, scan_port, scan_proto, lport = self.target_info[call_id]
+                    
+                    # 确认源IP匹配预期的目标IP
+                    src_ip = pkt[ScapyIP].src
+                    if src_ip == scan_ip or (self.proxy and src_ip == self.proxy.split(':')[0]):
+                        if headers and headers["response_code"] != "":
+                            if self.verbose == 2:
+                                print(
+                                    f"{self.c.BWHITE}[-] Receiving from {scan_ip}:{scan_port}/{scan_proto} ..."
+                                )
+                                print(f"{self.c.GREEN}{response}{self.c.WHITE}")
+                            
+                            sip_type = headers["type"]
+                            if self.method == "REGISTER":
+                                if headers["response_code"] == "405":
+                                    sip_type = "Device"
+                                if headers["response_code"] == "401":
+                                    sip_type = "Server"
+                            
+                            response_text = "%s %s" % (
+                                headers["response_code"],
+                                headers["response_text"],
                             )
-                        else:
-                            print(
-                                f"{self.c.WHITE}Response <{headers['response_code']} {headers['response_text']}> from {ip}:{str(rport)}/{proto} without User-Agent"
+                            
+                            fps = fingerprinting(
+                                self.method, response, headers, self.verbose
                             )
-
-                    if headers["ua"] != "" and self.getcve == 1:
-                        val = check_model(headers["ua"], fp, sip_type, self.cvelist)
-                        if val != "":
-                            for v in val:
-                                if v not in self.cve:
-                                    self.cve.append(v)
-            except socket.timeout:
-                pass
-            except Exception as error:
+                            
+                            fp = ""
+                            for f in fps:
+                                if f == "":
+                                    fp = "%s" % f
+                                else:
+                                    fp += "/%s" % f
+                            
+                            if fp[0:1] == "/":
+                                fp = fp[1:]
+                            
+                            # 使用目标IP而不是响应中的IP来显示结果
+                            line = "%s###%d###%s###%s###%s###%s###%s" % (
+                                scan_ip,
+                                scan_port,
+                                scan_proto,
+                                response_text,
+                                headers["ua"],
+                                sip_type,
+                                fp,
+                            )
+                            self.found.append(line)
+                            
+                            if self.oifile != "":
+                                if scan_ip not in self.ipsfound:
+                                    self.ipsfound.append(scan_ip)
+                            
+                            if self.verbose == 1:
+                                if headers["ua"] != "":
+                                    print(
+                                        f"{self.c.WHITE}Response <{headers['response_code']} {headers['response_text']}> from {scan_ip}:{str(scan_port)}/{scan_proto} with User-Agent {headers['ua']}"
+                                    )
+                                else:
+                                    print(
+                                        f"{self.c.WHITE}Response <{headers['response_code']} {headers['response_text']}> from {scan_ip}:{str(scan_port)}/{scan_proto} without User-Agent"
+                                    )
+                            
+                            if headers["ua"] != "" and self.getcve == 1:
+                                val = check_model(headers["ua"], fp, sip_type, self.cvelist)
+                                if val != "":
+                                    for v in val:
+                                        if v not in self.cve:
+                                            self.cve.append(v)
+                            
+                            # 收到响应后，从目标信息字典中移除
+                            del self.target_info[call_id]
+                            try:
+                                self.pending_scans.remove(scan_ip)
+                            except:
+                                pass
+                    
+            except Exception as e:
                 if self.verbose == 2:
-                    print(f"{self.c.RED}\n{error}{self.c.WHITE}")
-                pass
-            finally:
-                sock.close()
-
-                if proto == "TLS":
-                    sock_ssl.close()
-
-            return headers
+                    print(f"{self.c.RED}[!] Error processing packet: {str(e)}{self.c.WHITE}")
 
     def print(self):
         iplen = len("IP address")

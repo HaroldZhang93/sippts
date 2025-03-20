@@ -1,2 +1,2 @@
-192.168.100.10"192.168.100.91"+861088889003@dra.ims.sdt"asterisk"BYE"sip:100@192.168.100.91:5060;transport=UDP"g3kgpfcr""""MD5"a160eae1d07579bc1c349fa400b08950
-192.168.100.10"192.168.100.91"+861088888002@dra.ims.sdt"asterisk"BYE"sip:100@192.168.100.91:5060;transport=UDP"92o0h963""""MD5"4f09eb7250dccfaf93dc67638b7be60f
+192.168.100.10"20.50.1.11"+861088888002@dra.ims.sdt"asterisk"BYE"sip:100@20.50.1.11:5060;transport=UDP"ykp021dt""""MD5"98c95357a9e61793f3cc829a0fe98dd6
+192.168.100.10"20.50.1.10"+861088888002@dra.ims.sdt"asterisk"BYE"sip:100@20.50.1.10:5060;transport=UDP"l1crx8ka""""MD5"f0d4b8a81d4eebe72f7ae18da65fb0ff

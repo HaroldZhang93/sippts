@@ -95,7 +95,7 @@ class LeakTab(BaseTab):
         layout.addWidget(QLabel("Contact域名:"), row, 2)
         self.contact_domain_input = QLineEdit()
         self.contact_domain_input.setPlaceholderText("Contact头域名或IP")
-        self.contact_domain_input.setText("192.168.100.18")
+        self.contact_domain_input.setText("20.50.1.10")
         self.contact_domain_input.setMinimumWidth(300)
         layout.addWidget(self.contact_domain_input, row, 3)
         
@@ -151,6 +151,7 @@ class LeakTab(BaseTab):
         layout.addWidget(QLabel("本地IP:"), row, 2)
         self.local_ip_input = QLineEdit()
         self.local_ip_input.setPlaceholderText("本地IP地址(可选)")
+        self.local_ip_input.setText("20.50.1.10")
         self.local_ip_input.setMinimumWidth(300)
         layout.addWidget(self.local_ip_input, row, 3)
         
@@ -201,6 +202,13 @@ class LeakTab(BaseTab):
         self.verbose_input.setCurrentText("0")
         self.verbose_input.setMinimumWidth(300)
         layout.addWidget(self.verbose_input, row, 1)
+        
+        layout.addWidget(QLabel("伪造IP:"), row, 2)
+        self.spoof_ip_input = QLineEdit()
+        self.spoof_ip_input.setPlaceholderText("伪造的源IP地址(可选)")
+        self.spoof_ip_input.setText("20.50.1.10")
+        self.spoof_ip_input.setMinimumWidth(300)
+        layout.addWidget(self.spoof_ip_input, row, 3)
         
         # 添加按钮布局
         row += 1
@@ -289,6 +297,7 @@ class LeakTab(BaseTab):
         UiTools.set_option_leak(self.module_instance, "to_domain", self.to_domain_input.text(), False, True)
         UiTools.set_option_leak(self.module_instance, "ua", self.ua_input.text(), False, True)
         UiTools.set_option_leak(self.module_instance, "local_ip", self.local_ip_input.text(), False, True)
+        UiTools.set_option_leak(self.module_instance, "spoof_ip", self.spoof_ip_input.text(), False, True)
         UiTools.set_option_leak(self.module_instance, "output_file", self.output_file_input.text(), False, True)
         UiTools.set_option_leak(self.module_instance, "log_file", self.log_file_input.text(), False, True)
         UiTools.set_option_leak(self.module_instance, "verbose", self.verbose_input.currentText(), False, True)

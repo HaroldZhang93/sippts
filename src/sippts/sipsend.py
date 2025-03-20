@@ -13,6 +13,8 @@ import ssl
 import threading
 import time
 from scapy.all import IP, UDP, Raw, send, sniff
+from scapy.arch import get_windows_if_list  # Windows系统
+from scapy.arch import get_if_list          # Linux系统
 from .lib.functions import (
     create_message,
     get_free_port,
@@ -669,6 +671,7 @@ class SipSend:
                 Raw(load=msg)
         
         # 发送数据包
+        time.sleep(1)
         send(packet, verbose=0)
         
         if self.verbose == 1:
@@ -729,9 +732,29 @@ class SipSend:
     def sniffer(self, target_ip, lport):
         # 使用BPF过滤器只捕获来自目标服务器的UDP流量
         filter_str = f"udp and src host {target_ip} and dst port {lport} or 5060"
+        # print(f"filter_str: {filter_str}")
         try:
-            sniff(filter=filter_str, prn=self.packet_callback, store=0, 
-                  stop_filter=lambda x: self.stop_sniffing, timeout=self.timeout)
+            # 获取所有可用网络接口
+            if sys.platform == "win32":
+                interfaces = get_windows_if_list()
+                # 选择第一个活跃的接口
+                for iface in interfaces:
+                    if iface.get('name').startswith('以太网') or iface.get('name').startswith('Ethernet'):
+                        active_iface = iface.get('name')
+                        break
+            else:
+                # Linux系统
+                interfaces = get_if_list()
+                active_iface = interfaces[0]  # 通常第一个接口是活跃的
+            
+            print(f"{self.c.BWHITE}[+] Using network interface: {active_iface}")
+            
+            sniff(filter=filter_str, 
+                  prn=self.packet_callback,
+                  store=0,
+                  iface=active_iface,  # 指定网络接口
+                  stop_filter=lambda x: self.stop_sniffing,
+                  timeout=self.timeout)
         except Exception as e:
             print(f"{self.c.RED}[!] Sniffing error: {str(e)}{self.c.WHITE}")
             
