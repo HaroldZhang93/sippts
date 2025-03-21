@@ -390,9 +390,9 @@ class SendTab(BaseTab):
         
         # 设置SDP选项
         if self.sdp_check.isChecked():
-            UiTools.set_option_send(self.module_instance, "sdp", "1", False, False)
+            UiTools.set_option_send(self.module_instance, "sdp", 1, False, False)
         if self.sdes_check.isChecked():
-            UiTools.set_option_send(self.module_instance, "sdes", "1", False, False)
+            UiTools.set_option_send(self.module_instance, "sdes", 1, False, False)
             
         # 设置其他选项
         if self.nocontact_check.isChecked():

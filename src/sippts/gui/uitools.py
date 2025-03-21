@@ -862,6 +862,11 @@ class UiTools:
                 mod.force = (value == "是")
             else:
                 value = "是" if mod.force else "否"
+        elif param == "spoof_ip":
+            if run == False:
+                mod.spoof_ip = value
+            else:
+                value = mod.spoof_ip
         else:
             if log == True:
                 print(f"{c.WHITE}Wrong option: {c.BRED}{param}{c.WHITE}")

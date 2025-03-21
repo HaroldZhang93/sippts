@@ -120,6 +120,14 @@ class RTPBleedInjectTab(BaseTab):
         self.force_input.setMinimumWidth(300)
         layout.addWidget(self.force_input, row, 3)
         
+        row += 1
+        # 伪造源IP
+        layout.addWidget(QLabel("伪造源IP:"), row, 0)
+        self.spoof_ip_input = QLineEdit()
+        self.spoof_ip_input.setPlaceholderText("(可选) 伪造的源IP地址")
+        self.spoof_ip_input.setMinimumWidth(300)
+        layout.addWidget(self.spoof_ip_input, row, 1)
+        
         # 添加按钮布局
         row += 1
         button_layout = QHBoxLayout()
@@ -158,6 +166,7 @@ class RTPBleedInjectTab(BaseTab):
         # 获取参数
         target_ip = self.target_ip_input.text().strip()
         target_port = self.target_port_input.text().strip()
+        spoof_ip = self.spoof_ip_input.text().strip()
         payload = self.payload_input.currentText()
         wav_file = self.wav_file_input.text().strip()
         loop = self.loop_input.currentText() == "是"
@@ -187,6 +196,8 @@ class RTPBleedInjectTab(BaseTab):
         UiTools.set_option_rtpbleedinject(self.module_instance, "file", wav_file, False, True)
         UiTools.set_option_rtpbleedinject(self.module_instance, "loop", self.loop_input.currentText(), False, True)
         UiTools.set_option_rtpbleedinject(self.module_instance, "force", self.force_input.currentText(), False, True)
+        if spoof_ip:
+            UiTools.set_option_rtpbleedinject(self.module_instance, "spoof_ip", spoof_ip, False, True)
         
         # 清空结果文本
         self.result_text.clear()

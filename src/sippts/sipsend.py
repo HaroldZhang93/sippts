@@ -55,7 +55,7 @@ class SipSend:
         self.digest = ""
         self.branch = ""
         self.callid = ""
-        self.cseq = "1"
+        self.cseq = "2000"
         self.sdp = 0
         self.sdes = 0
         self.localip = ""

