@@ -1272,3 +1272,131 @@ class UiTools:
                 print(f"{c.GREEN}\n{param}{c.WHITE} -> {c.YELLOW}{value}{c.WHITE}\n")
 
         return value
+
+    def set_option_rtphijack(mod, param, value, run, log):
+        c = Color()
+        supported_protos = ["UDP", "TCP", "TLS"]
+
+        ok = True
+
+        if param == "ip":
+            if run == False:
+                mod.ip = value
+            else:
+                value = mod.ip
+        elif param == "rport":
+            if run == False:
+                mod.rport = value
+            else:
+                value = mod.rport
+        elif param == "proto":
+            if run == False:
+                value = value.upper()
+                if value not in supported_protos:
+                    if log == True:
+                        print(
+                            f"{c.WHITE}Protocol {c.BRED}{value} {c.WHITE}is not supported\n"
+                        )
+                    ok = False
+                else:
+                    mod.proto = value
+            else:
+                value = mod.proto
+        elif param == "from_user":
+            if run == False:
+                mod.from_user = value
+            else:
+                value = mod.from_user
+        elif param == "from_domain":
+            if run == False:
+                mod.from_domain = value
+            else:
+                value = mod.from_domain
+        elif param == "to_user":
+            if run == False:
+                mod.to_user = value
+            else:
+                value = mod.to_user
+        elif param == "to_domain":
+            if run == False:
+                mod.to_domain = value
+            else:
+                value = mod.to_domain
+        elif param == "domain":
+            if run == False:
+                mod.domain = value
+            else:
+                value = mod.domain
+        elif param == "rtp_payload_type":
+            if run == False:
+                mod.rtp_payload_type = value
+            else:
+                value = mod.rtp_payload_type
+        elif param == "rtp_port":
+            if run == False:
+                mod.rtp_local_port = int(value) if value else 10000
+            else:
+                value = mod.rtp_local_port
+        elif param == "audio_file":
+            if run == False:
+                mod.audio_file = value
+            else:
+                value = mod.audio_file
+        elif param == "timeout":
+            if run == False:
+                mod.timeout = int(value) if value else 60
+            else:
+                value = mod.timeout
+        elif param == "local_ip":
+            if run == False:
+                mod.localip = value
+            else:
+                value = mod.localip
+        elif param == "spoof_ip":
+            if run == False:
+                mod.spoof_ip = value
+            else:
+                value = mod.spoof_ip
+        elif param == "from_tag":
+            if run == False:
+                mod.from_tag = value
+            else:
+                value = mod.from_tag
+        elif param == "to_tag":
+            if run == False:
+                mod.to_tag = value
+            else:
+                value = mod.to_tag
+        elif param == "call_id":
+            if run == False:
+                mod.call_id = value
+            else:
+                value = mod.call_id
+        elif param == "enable_live_playback":
+            if run == False:
+                if value.lower() == "true":
+                    mod.enable_live_playback = True
+                else:
+                    mod.enable_live_playback = False
+            else:
+                value = str(mod.enable_live_playback).lower()
+        elif param == "verbose":
+            if run == False:
+                if value != "0" and value != "1":
+                    if log == True:
+                        print(f"{c.WHITE}Value {c.BRED}{value} {c.WHITE}is not valid\n")
+                    ok = False
+                else:
+                    mod.verbose = int(value)
+            else:
+                value = mod.verbose
+        else:
+            if log == True:
+                print(f"{c.WHITE}Wrong option: {c.BRED}{param}{c.WHITE}")
+            ok = False
+
+        if run == False and ok == True:
+            if log == True:
+                print(f"{c.GREEN}\n{param}{c.WHITE} -> {c.YELLOW}{value}{c.WHITE}\n")
+
+        return value

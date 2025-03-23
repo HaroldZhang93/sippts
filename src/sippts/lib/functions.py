@@ -1395,3 +1395,38 @@ def check_model(ua, fp, type, cvelist):
                 found.append(cve)
 
     return found
+
+
+def extract_rtp_info(sip_message):
+    """从SIP消息中提取RTP相关的SDP信息
+    
+    参数:
+        sip_message (str): 完整的SIP消息
+        
+    返回:
+        dict: 包含IP和端口的字典，如果未找到则返回None
+    """
+    # 提取SDP部分
+    try:
+        parts = sip_message.split('\r\n\r\n', 1)
+        if len(parts) < 2:
+            return None
+        
+        sdp = parts[1]
+        
+        # 从SDP中提取连接信息 (c=)
+        ip_match = re.search(r'c=IN IP[46] ([0-9a-fA-F.:]+)', sdp)
+        
+        # 从SDP中提取媒体信息 (m=)
+        port_match = re.search(r'm=audio (\d+) RTP', sdp)
+        
+        if ip_match and port_match:
+            return {
+                'ip': ip_match.group(1),
+                'port': port_match.group(1)
+            }
+        
+        return None
+    except Exception as e:
+        print(f"Error extracting RTP info: {str(e)}")
+        return None

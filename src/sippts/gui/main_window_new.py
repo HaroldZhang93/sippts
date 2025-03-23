@@ -7,6 +7,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, QObject
 from PyQt5.QtGui import QTextCharFormat, QColor, QTextCursor, QIcon
 
 # 导入模块标签页
+from sippts.gui.modules.rtphijack_tab import RTPHijackTab
 from sippts.gui.modules.rtpbleedinject_tab import RTPBleedInjectTab
 from sippts.gui.modules.rtpbleed_tab import RTPBleedTab
 from sippts.gui.modules.scan_tab import ScanTab
@@ -157,6 +158,10 @@ class MainWindow(QMainWindow):
         # RTP注入模块
         self.rtpbleedinject_tab = RTPBleedInjectTab(self)
         self.tabs.addTab(self.rtpbleedinject_tab, "RTP注入")
+        
+        # RTP劫持模块
+        self.rtphijack_tab = RTPHijackTab(self)
+        self.tabs.addTab(self.rtphijack_tab, "RTP劫持")
         
         # 其他模块将在这里添加
         # self.exten_tab = ExtenTab(self)
