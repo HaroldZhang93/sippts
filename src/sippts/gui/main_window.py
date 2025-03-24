@@ -2544,6 +2544,17 @@ class MainWindow(QMainWindow):
         self.send_start_btn.setEnabled(True)
         self.send_stop_btn.setEnabled(False)
 
+    def closeEvent(self, event):
+        """窗口关闭事件处理"""
+        # 保存所有标签页的输入值
+        for i in range(self.centralWidget().layout().itemAt(0).widget().count()):
+            tab = self.centralWidget().layout().itemAt(0).widget().widget(i)
+            if hasattr(tab, 'save_input_values'):
+                tab.save_input_values()
+        
+        # 调用父类方法，处理关闭事件
+        super().closeEvent(event)
+
 # 添加一个通用的工作线程类
 class ModuleWorker(QThread):
     finished = pyqtSignal()  # 完成信号

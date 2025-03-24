@@ -1,5 +1,6 @@
-from PyQt5.QtWidgets import QWidget, QTextEdit
+from PyQt5.QtWidgets import QWidget, QTextEdit, QLineEdit, QComboBox
 from PyQt5.QtCore import pyqtSignal
+from sippts.gui.common.config_manager import ConfigManager
 
 class BaseTab(QWidget):
     """所有功能模块标签页的基类"""
@@ -11,6 +12,7 @@ class BaseTab(QWidget):
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
+        self.config_manager = ConfigManager()
         self.module_instance = None
         self.result_text = None  # 结果文本控件
         self.start_btn = None  # 开始按钮
@@ -72,4 +74,46 @@ class BaseTab(QWidget):
             # 滚动到底部
             cursor = self.result_text.textCursor()
             cursor.movePosition(cursor.End)
-            self.result_text.setTextCursor(cursor) 
+            self.result_text.setTextCursor(cursor)
+    
+    def save_input_values(self, save_immediately=False):
+        """保存输入框的值到配置文件
+        
+        Args:
+            save_immediately: 是否立即保存到文件，默认为False
+        """
+        config_data = {}
+        
+        # 遍历标签页中的所有QLineEdit控件
+        for widget in self.findChildren(QLineEdit):
+            if hasattr(widget, 'objectName') and widget.objectName():
+                config_data[widget.objectName()] = widget.text()
+        
+        # 遍历标签页中的所有QComboBox控件
+        for widget in self.findChildren(QComboBox):
+            if hasattr(widget, 'objectName') and widget.objectName():
+                config_data[widget.objectName()] = widget.currentText()
+        
+        # 保存配置
+        tab_name = self.__class__.__name__
+        self.config_manager.save_tab_config(tab_name, config_data, save_immediately)
+    
+    def load_input_values(self):
+        """从配置文件加载输入框的值"""
+        tab_name = self.__class__.__name__
+        config_data = self.config_manager.get_tab_config(tab_name)
+        
+        if not config_data:
+            return
+        
+        # 加载QLineEdit控件的值
+        for widget in self.findChildren(QLineEdit):
+            if hasattr(widget, 'objectName') and widget.objectName() and widget.objectName() in config_data:
+                widget.setText(config_data[widget.objectName()])
+        
+        # 加载QComboBox控件的值
+        for widget in self.findChildren(QComboBox):
+            if hasattr(widget, 'objectName') and widget.objectName() and widget.objectName() in config_data:
+                index = widget.findText(config_data[widget.objectName()])
+                if index >= 0:
+                    widget.setCurrentIndex(index) 

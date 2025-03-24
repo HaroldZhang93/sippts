@@ -3,7 +3,7 @@ import re
 import traceback
 import os
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget, QMessageBox
-from PyQt5.QtCore import QThread, pyqtSignal, QObject
+from PyQt5.QtCore import QThread, pyqtSignal, QObject, QEvent
 from PyQt5.QtGui import QTextCharFormat, QColor, QTextCursor, QIcon
 
 # 导入模块标签页
@@ -40,7 +40,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("SIPPTS - SIP Penetration Testing Tools")
         self.setMinimumSize(800, 600)
-        self.setGeometry(100, 100, 1200, 800)
+        self.setGeometry(100, 100, 1920, 1080)
         
         # 创建主标签页控件
         self.tabs = QTabWidget()
@@ -264,6 +264,39 @@ class MainWindow(QMainWindow):
             # 调用完成回调，恢复UI状态
             if on_finished_callback:
                 on_finished_callback()
+    
+    def closeEvent(self, event):
+        """窗口关闭事件处理函数，用于保存配置"""
+        # 停止当前运行的模块
+        self.stop_module()
+        
+        # 保存所有标签页的配置
+        self.save_all_tab_configurations()
+        
+        # 接受关闭事件
+        event.accept()
+    
+    def save_all_tab_configurations(self):
+        """保存所有标签页的配置"""
+        try:
+            # 遍历所有标签页并调用其save_input_values方法
+            # 但不立即保存到文件
+            for i in range(self.tabs.count()):
+                tab = self.tabs.widget(i)
+                if hasattr(tab, 'save_input_values'):
+                    tab.save_input_values(save_immediately=False)
+            
+            # 所有标签页配置收集完毕后，统一保存一次
+            # 由于ConfigManager是单例模式，任何标签页的config_manager都是同一个实例
+            # 所以我们可以使用任意一个标签页的config_manager
+            from sippts.gui.common.config_manager import ConfigManager
+            config_manager = ConfigManager()
+            config_manager.save_config()
+                    
+            print("所有配置已保存")
+        except Exception as e:
+            print(f"保存配置时出错: {str(e)}")
+            traceback.print_exc()
 
 
 class ModuleWorker(QThread):

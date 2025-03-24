@@ -68,6 +68,9 @@ class SniffTab(BaseTab):
         # 初始化UI
         self.setup_ui()
         
+        # 加载保存的输入值
+        self.load_input_values()
+        
         # 存储接口映射
         self.interface_map = {}
     
@@ -91,6 +94,7 @@ class SniffTab(BaseTab):
         interface_layout = QHBoxLayout()
         
         self.interface_input = QComboBox()
+        self.interface_input.setObjectName("interface_input")
         self.interface_input.setPlaceholderText("选择网络接口")
         self.interface_input.setMinimumWidth(300)
         interface_layout.addWidget(self.interface_input)
@@ -106,6 +110,7 @@ class SniffTab(BaseTab):
         
         layout.addWidget(QLabel("协议:"), row, 2)
         self.proto_input = QComboBox()
+        self.proto_input.setObjectName("proto_input")
         self.proto_input.addItems(["ALL", "UDP", "TCP", "TLS"])
         self.proto_input.setCurrentText("UDP")
         self.proto_input.setMinimumWidth(300)
@@ -118,6 +123,7 @@ class SniffTab(BaseTab):
         output_file_layout = QHBoxLayout()
         
         self.output_file_input = QLineEdit()
+        self.output_file_input.setObjectName("output_file_input")
         self.output_file_input.setText("snifftest.pcap")
         self.output_file_input.setPlaceholderText("嗅探结果保存文件路径")
         self.output_file_input.setMinimumWidth(240)
@@ -137,10 +143,12 @@ class SniffTab(BaseTab):
         options_layout = QHBoxLayout()
         
         self.verbose_check = QCheckBox("详细输出")
+        self.verbose_check.setObjectName("verbose_check")
         self.verbose_check.setChecked(False)
         options_layout.addWidget(self.verbose_check)
         
         self.auth_check = QCheckBox("仅显示认证信息")
+        self.auth_check.setObjectName("auth_check")
         self.auth_check.setChecked(False)
         options_layout.addWidget(self.auth_check)
         
@@ -356,6 +364,8 @@ class SniffTab(BaseTab):
     
     def start_module(self):
         """启动SIP嗅探模块"""
+        # 保存当前输入值
+        self.save_input_values()
         try:
             # 清空结果文本
             self.result_text.clear()

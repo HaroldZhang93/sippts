@@ -15,6 +15,9 @@ class DumpTab(BaseTab):
         
         # 初始化UI
         self.setup_ui()
+        
+        # 从配置加载输入值
+        self.load_input_values()
     
     def setup_ui(self):
         """设置UI界面"""
@@ -36,6 +39,7 @@ class DumpTab(BaseTab):
         input_file_layout = QHBoxLayout()
         
         self.file_input = QLineEdit()
+        self.file_input.setObjectName("file_input")
         self.file_input.setText("C:/workspace/IMS/Test Tools/sippts/sippts/test.pcap")
         self.file_input.setPlaceholderText("要分析的PCAP文件路径")
         self.file_input.setMinimumWidth(300)  # 设置最小宽度
@@ -56,6 +60,7 @@ class DumpTab(BaseTab):
         output_file_layout = QHBoxLayout()
         
         self.output_file_input = QLineEdit()
+        self.output_file_input.setObjectName("output_file_input")
         self.output_file_input.setText("C:/workspace/IMS/Test Tools/sippts/sippts/sipdump.txt")
         self.output_file_input.setPlaceholderText("分析结果保存路径")
         self.output_file_input.setMinimumWidth(300)  # 设置最小宽度
@@ -119,6 +124,9 @@ class DumpTab(BaseTab):
     
     def start_module(self):
         """启动SIP数据包分析模块"""
+        # 保存当前输入值
+        self.save_input_values()
+        
         # 清空结果文本
         self.result_text.clear()
         

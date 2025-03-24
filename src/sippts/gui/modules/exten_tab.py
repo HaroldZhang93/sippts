@@ -15,6 +15,9 @@ class ExtenTab(BaseTab):
         
         # 初始化UI
         self.setup_ui()
+        
+        # 从配置加载输入值
+        self.load_input_values()
     
     def setup_ui(self):
         """设置UI界面"""
@@ -32,6 +35,7 @@ class ExtenTab(BaseTab):
         row = 0
         layout.addWidget(QLabel("目标 IP:"), row, 0)
         self.ip_input = QLineEdit()
+        self.ip_input.setObjectName("ip_input")
         self.ip_input.setText("192.168.4.200")
         self.ip_input.setPlaceholderText("目标主机IP地址")
         self.ip_input.setMinimumWidth(300)
@@ -39,6 +43,7 @@ class ExtenTab(BaseTab):
         
         layout.addWidget(QLabel("端口:"), row, 2)
         self.port_input = QLineEdit()
+        self.port_input.setObjectName("port_input")
         self.port_input.setText("5060")
         self.port_input.setPlaceholderText("目标端口，例如: 5060")
         self.port_input.setMinimumWidth(300)
@@ -47,6 +52,7 @@ class ExtenTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("分机范围:"), row, 0)
         self.exten_input = QLineEdit()
+        self.exten_input.setObjectName("exten_input")
         self.exten_input.setText("3000-3100")
         self.exten_input.setPlaceholderText("例如: 100 | 100,102,105 | 100-200")
         self.exten_input.setMinimumWidth(300)
@@ -54,6 +60,7 @@ class ExtenTab(BaseTab):
         
         layout.addWidget(QLabel("协议:"), row, 2)
         self.proto_input = QComboBox()
+        self.proto_input.setObjectName("proto_input")
         self.proto_input.addItems(["UDP", "TCP", "TLS"])
         self.proto_input.setCurrentText("UDP")
         self.proto_input.setMinimumWidth(300)
@@ -62,12 +69,14 @@ class ExtenTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("代理:"), row, 0)
         self.proxy_input = QLineEdit()
+        self.proxy_input.setObjectName("proxy_input")
         self.proxy_input.setPlaceholderText("例如: 192.168.1.1 或 192.168.1.1:5070")
         self.proxy_input.setMinimumWidth(300)
         layout.addWidget(self.proxy_input, row, 1)
         
         layout.addWidget(QLabel("分机前缀:"), row, 2)
         self.prefix_input = QLineEdit()
+        self.prefix_input.setObjectName("prefix_input")
         self.prefix_input.setPlaceholderText("用于认证的分机前缀")
         self.prefix_input.setMinimumWidth(300)
         layout.addWidget(self.prefix_input, row, 3)
@@ -75,6 +84,7 @@ class ExtenTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("扫描方法:"), row, 0)
         self.method_input = QComboBox()
+        self.method_input.setObjectName("method_input")
         self.method_input.addItems(["OPTIONS", "REGISTER", "INVITE"])
         self.method_input.setCurrentText("REGISTER")
         self.method_input.setMinimumWidth(300)
@@ -82,6 +92,7 @@ class ExtenTab(BaseTab):
         
         layout.addWidget(QLabel("域名:"), row, 2)
         self.domain_input = QLineEdit()
+        self.domain_input.setObjectName("domain_input")
         self.domain_input.setPlaceholderText("SIP域名或IP (默认: 目标IP)")
         self.domain_input.setMinimumWidth(300)
         layout.addWidget(self.domain_input, row, 3)
@@ -89,12 +100,14 @@ class ExtenTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("Contact域名:"), row, 0)
         self.contact_domain_input = QLineEdit()
+        self.contact_domain_input.setObjectName("contact_domain_input")
         self.contact_domain_input.setPlaceholderText("Contact头域名或IP, 例如: 10.0.1.2")
         self.contact_domain_input.setMinimumWidth(300)
         layout.addWidget(self.contact_domain_input, row, 1)
         
         layout.addWidget(QLabel("From用户:"), row, 2)
         self.from_user_input = QLineEdit()
+        self.from_user_input.setObjectName("from_user_input")
         self.from_user_input.setText("100")
         self.from_user_input.setPlaceholderText("From头的用户名")
         self.from_user_input.setMinimumWidth(300)
@@ -103,6 +116,7 @@ class ExtenTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("User-Agent:"), row, 0)
         self.ua_input = QLineEdit()
+        self.ua_input.setObjectName("ua_input")
         self.ua_input.setText("pplsip")
         self.ua_input.setPlaceholderText("User-Agent头的值")
         self.ua_input.setMinimumWidth(300)
@@ -110,6 +124,7 @@ class ExtenTab(BaseTab):
         
         layout.addWidget(QLabel("线程数:"), row, 2)
         self.threads_input = QLineEdit()
+        self.threads_input.setObjectName("threads_input")
         self.threads_input.setText("500")
         self.threads_input.setPlaceholderText("扫描使用的线程数")
         self.threads_input.setMinimumWidth(300)
@@ -118,6 +133,7 @@ class ExtenTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("超时(秒):"), row, 0)
         self.timeout_input = QLineEdit()
+        self.timeout_input.setObjectName("timeout_input")
         self.timeout_input.setText("5")
         self.timeout_input.setPlaceholderText("Socket超时时间(秒)")
         self.timeout_input.setMinimumWidth(300)
@@ -125,6 +141,7 @@ class ExtenTab(BaseTab):
         
         layout.addWidget(QLabel("详细程度:"), row, 2)
         self.verbose_input = QComboBox()
+        self.verbose_input.setObjectName("verbose_input")
         self.verbose_input.addItems(["0", "1", "2"])
         self.verbose_input.setCurrentText("0")
         self.verbose_input.setMinimumWidth(300)
@@ -133,6 +150,7 @@ class ExtenTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("过滤响应码:"), row, 0)
         self.filter_input = QLineEdit()
+        self.filter_input.setObjectName("filter_input")
         self.filter_input.setPlaceholderText("过滤指定响应码，例如: 200")
         self.filter_input.setMinimumWidth(300)
         layout.addWidget(self.filter_input, row, 1)
@@ -143,6 +161,7 @@ class ExtenTab(BaseTab):
         output_file_layout = QHBoxLayout()
         
         self.output_file_input = QLineEdit()
+        self.output_file_input.setObjectName("output_file_input")
         self.output_file_input.setPlaceholderText("保存扫描结果的文件路径")
         self.output_file_input.setMinimumWidth(240)
         output_file_layout.addWidget(self.output_file_input)
@@ -191,6 +210,9 @@ class ExtenTab(BaseTab):
     
     def start_module(self):
         """启动SIP分机枚举模块"""
+        # 保存当前输入值
+        self.save_input_values()
+        
         # 清空结果文本
         self.result_text.clear()
         

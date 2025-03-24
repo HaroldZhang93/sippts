@@ -15,6 +15,9 @@ class DCrackTab(BaseTab):
         
         # 初始化UI
         self.setup_ui()
+        
+        # 从配置加载输入值
+        self.load_input_values()
     
     def setup_ui(self):
         """设置UI界面"""
@@ -36,6 +39,7 @@ class DCrackTab(BaseTab):
         input_file_layout = QHBoxLayout()
         
         self.file_input = QLineEdit()
+        self.file_input.setObjectName("file_input")
         self.file_input.setText("C:/workspace/IMS/Test Tools/sippts/sippts/sipdump.txt")
         self.file_input.setPlaceholderText("包含SIP认证信息的文件路径")
         self.file_input.setMinimumWidth(240)
@@ -56,6 +60,7 @@ class DCrackTab(BaseTab):
         wordlist_layout = QHBoxLayout()
         
         self.wordlist_input = QLineEdit()
+        self.wordlist_input.setObjectName("wordlist_input")
         self.wordlist_input.setText("C:/workspace/IMS/Test Tools/sippts/sippts/passwordlist.txt")
         self.wordlist_input.setPlaceholderText("密码字典文件路径")
         self.wordlist_input.setMinimumWidth(240)
@@ -73,12 +78,14 @@ class DCrackTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("用户名:"), row, 0)
         self.username_input = QLineEdit()
+        self.username_input.setObjectName("username_input")
         self.username_input.setPlaceholderText("指定要破解的用户名(可选)")
         self.username_input.setMinimumWidth(300)
         layout.addWidget(self.username_input, row, 1)
         
         layout.addWidget(QLabel("暴力破解:"), row, 2)
         self.bruteforce_input = QComboBox()
+        self.bruteforce_input.setObjectName("bruteforce_input")
         self.bruteforce_input.addItems(["0", "1"])
         self.bruteforce_input.setCurrentText("0")
         self.bruteforce_input.setMinimumWidth(300)
@@ -87,6 +94,7 @@ class DCrackTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("字符集:"), row, 0)
         self.charset_input = QComboBox()
+        self.charset_input.setObjectName("charset_input")
         self.charset_input.addItems(["digits", "hexdigits", "octdigits", "punctuation", "printable", "whitespace", "ascii_letters", "ascii_lowercase", "ascii_uppercase"])
         self.charset_input.setCurrentText("digits")
         self.charset_input.setMinimumWidth(300)
@@ -94,6 +102,7 @@ class DCrackTab(BaseTab):
         
         layout.addWidget(QLabel("最小长度:"), row, 2)
         self.min_input = QLineEdit()
+        self.min_input.setObjectName("min_input")
         self.min_input.setText("6")
         self.min_input.setPlaceholderText("暴力破解的最小密码长度")
         self.min_input.setMinimumWidth(300)
@@ -102,6 +111,7 @@ class DCrackTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("最大长度:"), row, 0)
         self.max_input = QLineEdit()
+        self.max_input.setObjectName("max_input")
         self.max_input.setText("6")
         self.max_input.setPlaceholderText("暴力破解的最大密码长度")
         self.max_input.setMinimumWidth(300)
@@ -109,6 +119,7 @@ class DCrackTab(BaseTab):
         
         layout.addWidget(QLabel("线程数:"), row, 2)
         self.threads_input = QLineEdit()
+        self.threads_input.setObjectName("threads_input")
         self.threads_input.setText("10")
         self.threads_input.setPlaceholderText("破解使用的线程数")
         self.threads_input.setMinimumWidth(300)
@@ -117,12 +128,14 @@ class DCrackTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("密码前缀:"), row, 0)
         self.prefix_input = QLineEdit()
+        self.prefix_input.setObjectName("prefix_input")
         self.prefix_input.setPlaceholderText("密码前缀(可选)")
         self.prefix_input.setMinimumWidth(300)
         layout.addWidget(self.prefix_input, row, 1)
         
         layout.addWidget(QLabel("密码后缀:"), row, 2)
         self.suffix_input = QLineEdit()
+        self.suffix_input.setObjectName("suffix_input")
         self.suffix_input.setPlaceholderText("密码后缀(可选)")
         self.suffix_input.setMinimumWidth(300)
         layout.addWidget(self.suffix_input, row, 3)
@@ -130,6 +143,7 @@ class DCrackTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("详细程度:"), row, 0)
         self.verbose_input = QComboBox()
+        self.verbose_input.setObjectName("verbose_input")
         self.verbose_input.addItems(["0", "1"])
         self.verbose_input.setCurrentText("0")
         self.verbose_input.setMinimumWidth(300)
@@ -181,6 +195,9 @@ class DCrackTab(BaseTab):
     
     def start_module(self):
         """启动SIP离线密码破解模块"""
+        # 保存当前输入值
+        self.save_input_values()
+        
         # 清空结果文本
         self.result_text.clear()
         

@@ -16,6 +16,9 @@ class RTPBleedInjectTab(BaseTab):
         
         # 初始化UI
         self.setup_ui()
+        
+        # 加载保存的输入值
+        self.load_input_values()
     
     def setup_ui(self):
         """设置UI界面"""
@@ -34,6 +37,7 @@ class RTPBleedInjectTab(BaseTab):
         # 目标IP
         layout.addWidget(QLabel("目标IP:"), row, 0)
         self.target_ip_input = QLineEdit()
+        self.target_ip_input.setObjectName("target_ip_input")  # 添加对象名
         self.target_ip_input.setText("192.168.100.99")
         self.target_ip_input.setPlaceholderText("例如: 192.168.1.100")
         self.target_ip_input.setMinimumWidth(300)
@@ -42,6 +46,7 @@ class RTPBleedInjectTab(BaseTab):
         # 目标端口
         layout.addWidget(QLabel("目标端口:"), row, 2)
         self.target_port_input = QLineEdit()
+        self.target_port_input.setObjectName("target_port_input")  # 添加对象名
         self.target_port_input.setText("10042")
         self.target_port_input.setPlaceholderText("例如: 5004")
         self.target_port_input.setMinimumWidth(300)
@@ -51,6 +56,7 @@ class RTPBleedInjectTab(BaseTab):
         # 负载类型
         layout.addWidget(QLabel("负载类型:"), row, 0)
         self.payload_input = QComboBox()
+        self.payload_input.setObjectName("payload_input")  # 添加对象名
         # 添加所有支持的负载类型
         self.payload_input.addItems([
             "0 PCMU (audio)",
@@ -89,6 +95,7 @@ class RTPBleedInjectTab(BaseTab):
         wav_file_layout = QHBoxLayout()
         
         self.wav_file_input = QLineEdit()
+        self.wav_file_input.setObjectName("wav_file_input")  # 添加对象名
         self.wav_file_input.setText("C:/workspace/IMS/Test Tools/sippts/sippts/test.wav")
         self.wav_file_input.setPlaceholderText("要注入的WAV音频文件路径")
         self.wav_file_input.setMinimumWidth(240)
@@ -107,6 +114,7 @@ class RTPBleedInjectTab(BaseTab):
         # 循环发送
         layout.addWidget(QLabel("循环发送:"), row, 0)
         self.loop_input = QComboBox()
+        self.loop_input.setObjectName("loop_input")  # 添加对象名
         self.loop_input.addItems(["否", "是"])
         self.loop_input.setCurrentText("否")
         self.loop_input.setMinimumWidth(300)
@@ -115,6 +123,7 @@ class RTPBleedInjectTab(BaseTab):
         # 强制注入
         layout.addWidget(QLabel("强制注入:"), row, 2)
         self.force_input = QComboBox()
+        self.force_input.setObjectName("force_input")  # 添加对象名
         self.force_input.addItems(["否", "是"])
         self.force_input.setCurrentText("否")
         self.force_input.setMinimumWidth(300)
@@ -124,6 +133,7 @@ class RTPBleedInjectTab(BaseTab):
         # 伪造源IP
         layout.addWidget(QLabel("伪造源IP:"), row, 0)
         self.spoof_ip_input = QLineEdit()
+        self.spoof_ip_input.setObjectName("spoof_ip_input")  # 添加对象名
         self.spoof_ip_input.setPlaceholderText("(可选) 伪造的源IP地址")
         self.spoof_ip_input.setMinimumWidth(300)
         layout.addWidget(self.spoof_ip_input, row, 1)
@@ -163,6 +173,9 @@ class RTPBleedInjectTab(BaseTab):
     
     def start_module(self):
         """启动RTP注入模块"""
+        # 保存当前输入值
+        self.save_input_values()
+        
         # 获取参数
         target_ip = self.target_ip_input.text().strip()
         target_port = self.target_port_input.text().strip()

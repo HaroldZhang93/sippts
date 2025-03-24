@@ -15,6 +15,9 @@ class CrackTab(BaseTab):
         
         # 初始化UI
         self.setup_ui()
+        
+        # 从配置加载输入值
+        self.load_input_values()
     
     def setup_ui(self):
         """设置UI界面"""
@@ -32,6 +35,7 @@ class CrackTab(BaseTab):
         row = 0
         layout.addWidget(QLabel("目标 IP/网段:"), row, 0)
         self.ip_input = QLineEdit()
+        self.ip_input.setObjectName("ip_input")
         self.ip_input.setText("20.50.1.10")
         self.ip_input.setPlaceholderText("目标IP地址或网段，例如: 192.168.0.0/24")
         self.ip_input.setMinimumWidth(300)
@@ -39,6 +43,7 @@ class CrackTab(BaseTab):
         
         layout.addWidget(QLabel("端口:"), row, 2)
         self.port_input = QLineEdit()
+        self.port_input.setObjectName("port_input")
         self.port_input.setText("5060")
         self.port_input.setPlaceholderText("目标端口，例如: 5060")
         self.port_input.setMinimumWidth(300)
@@ -47,6 +52,7 @@ class CrackTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("分机范围:"), row, 0)
         self.exten_input = QLineEdit()
+        self.exten_input.setObjectName("exten_input")
         self.exten_input.setText("9001-9005")
         self.exten_input.setPlaceholderText("例如: 100 | 100,102,105 | 100-200")
         self.exten_input.setMinimumWidth(300)
@@ -54,6 +60,7 @@ class CrackTab(BaseTab):
         
         layout.addWidget(QLabel("协议:"), row, 2)
         self.proto_input = QComboBox()
+        self.proto_input.setObjectName("proto_input")
         self.proto_input.addItems(["UDP", "TCP", "TLS"])
         self.proto_input.setCurrentText("UDP")
         self.proto_input.setMinimumWidth(300)
@@ -62,12 +69,14 @@ class CrackTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("代理:"), row, 0)
         self.proxy_input = QLineEdit()
+        self.proxy_input.setObjectName("proxy_input")
         self.proxy_input.setPlaceholderText("例如: 192.168.1.1 或 192.168.1.1:5070")
         self.proxy_input.setMinimumWidth(300)
         layout.addWidget(self.proxy_input, row, 1)
         
         layout.addWidget(QLabel("分机前缀:"), row, 2)
         self.prefix_input = QLineEdit()
+        self.prefix_input.setObjectName("prefix_input")
         self.prefix_input.setPlaceholderText("用于认证的分机前缀")
         self.prefix_input.setMinimumWidth(300)
         self.prefix_input.setText("+86108888")
@@ -76,12 +85,14 @@ class CrackTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("认证用户:"), row, 0)
         self.authuser_input = QLineEdit()
+        self.authuser_input.setObjectName("authuser_input")
         self.authuser_input.setPlaceholderText("认证用户名(默认使用分机号)")
         self.authuser_input.setMinimumWidth(300)
         layout.addWidget(self.authuser_input, row, 1)
         
         layout.addWidget(QLabel("分机长度:"), row, 2)
         self.ext_len_input = QLineEdit()
+        self.ext_len_input.setObjectName("ext_len_input")
         self.ext_len_input.setPlaceholderText("分机号长度，用0补齐")
         self.ext_len_input.setMinimumWidth(300)
         layout.addWidget(self.ext_len_input, row, 3)
@@ -89,6 +100,7 @@ class CrackTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("域名:"), row, 0)
         self.domain_input = QLineEdit()
+        self.domain_input.setObjectName("domain_input")
         self.domain_input.setPlaceholderText("SIP域名或IP (默认: 目标IP)")
         self.domain_input.setMinimumWidth(300)
         self.domain_input.setText("dra.ims.sdt")
@@ -96,6 +108,7 @@ class CrackTab(BaseTab):
         
         layout.addWidget(QLabel("Contact域名:"), row, 2)
         self.contact_domain_input = QLineEdit()
+        self.contact_domain_input.setObjectName("contact_domain_input")
         self.contact_domain_input.setText("192.168.100.99")
         self.contact_domain_input.setPlaceholderText("Contact头域名或IP")
         self.contact_domain_input.setMinimumWidth(300)
@@ -108,6 +121,7 @@ class CrackTab(BaseTab):
         wordlist_layout = QHBoxLayout()
         
         self.wordlist_input = QLineEdit()
+        self.wordlist_input.setObjectName("wordlist_input")
         self.wordlist_input.setText("C:/workspace/IMS/Test Tools/sippts/sippts/passwordlist.txt")
         self.wordlist_input.setPlaceholderText("密码字典文件路径")
         self.wordlist_input.setMinimumWidth(240)
@@ -124,6 +138,7 @@ class CrackTab(BaseTab):
         
         layout.addWidget(QLabel("User-Agent:"), row, 2)
         self.ua_input = QLineEdit()
+        self.ua_input.setObjectName("ua_input")
         self.ua_input.setText("pplsip")
         self.ua_input.setPlaceholderText("User-Agent头的值")
         self.ua_input.setMinimumWidth(300)
@@ -132,6 +147,7 @@ class CrackTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("线程数:"), row, 0)
         self.threads_input = QLineEdit()
+        self.threads_input.setObjectName("threads_input")
         self.threads_input.setText("100")
         self.threads_input.setPlaceholderText("破解使用的线程数")
         self.threads_input.setMinimumWidth(300)
@@ -139,6 +155,7 @@ class CrackTab(BaseTab):
         
         layout.addWidget(QLabel("超时(秒):"), row, 2)
         self.timeout_input = QLineEdit()
+        self.timeout_input.setObjectName("timeout_input")
         self.timeout_input.setText("5")
         self.timeout_input.setPlaceholderText("Socket超时时间(秒)")
         self.timeout_input.setMinimumWidth(300)
@@ -147,6 +164,7 @@ class CrackTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("详细程度:"), row, 0)
         self.verbose_input = QComboBox()
+        self.verbose_input.setObjectName("verbose_input")
         self.verbose_input.addItems(["0", "1", "2"])
         self.verbose_input.setCurrentText("0")
         self.verbose_input.setMinimumWidth(300)
@@ -187,6 +205,9 @@ class CrackTab(BaseTab):
     
     def start_module(self):
         """启动SIP密码破解模块"""
+        # 保存当前输入值
+        self.save_input_values()
+        
         # 清空结果文本
         self.result_text.clear()
         

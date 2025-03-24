@@ -15,6 +15,9 @@ class LeakTab(BaseTab):
         
         # 初始化UI
         self.setup_ui()
+        
+        # 从配置加载输入值
+        self.load_input_values()
     
     def setup_ui(self):
         """设置UI界面"""
@@ -32,6 +35,7 @@ class LeakTab(BaseTab):
         row = 0
         layout.addWidget(QLabel("目标 IP:"), row, 0)
         self.ip_input = QLineEdit()
+        self.ip_input.setObjectName("ip_input")
         self.ip_input.setPlaceholderText("目标主机IP地址")
         self.ip_input.setText("192.168.100.10")
         self.ip_input.setMinimumWidth(300)
@@ -39,6 +43,7 @@ class LeakTab(BaseTab):
         
         layout.addWidget(QLabel("端口:"), row, 2)
         self.port_input = QLineEdit()
+        self.port_input.setObjectName("port_input")
         self.port_input.setText("5060")
         self.port_input.setPlaceholderText("目标端口")
         self.port_input.setMinimumWidth(300)
@@ -51,6 +56,7 @@ class LeakTab(BaseTab):
         file_layout = QHBoxLayout()
         
         self.file_input = QLineEdit()
+        self.file_input.setObjectName("file_input")
         self.file_input.setPlaceholderText("包含多个IP的文件路径")
         self.file_input.setMinimumWidth(240)
         file_layout.addWidget(self.file_input)
@@ -66,6 +72,7 @@ class LeakTab(BaseTab):
         
         layout.addWidget(QLabel("协议:"), row, 2)
         self.proto_input = QComboBox()
+        self.proto_input.setObjectName("proto_input")
         self.proto_input.addItems(["UDP", "TCP", "TLS"])
         self.proto_input.setCurrentText("UDP")
         self.proto_input.setMinimumWidth(300)
@@ -74,12 +81,14 @@ class LeakTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("代理:"), row, 0)
         self.proxy_input = QLineEdit()
+        self.proxy_input.setObjectName("proxy_input")
         self.proxy_input.setPlaceholderText("例如: 192.168.1.1 或 192.168.1.1:5070")
         self.proxy_input.setMinimumWidth(300)
         layout.addWidget(self.proxy_input, row, 1)
         
         layout.addWidget(QLabel("认证模式:"), row, 2)
         self.auth_input = QComboBox()
+        self.auth_input.setObjectName("auth_input")
         self.auth_input.addItems(["www", "proxy"])
         self.auth_input.setCurrentText("www")
         self.auth_input.setMinimumWidth(300)
@@ -88,12 +97,14 @@ class LeakTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("域名:"), row, 0)
         self.domain_input = QLineEdit()
+        self.domain_input.setObjectName("domain_input")
         self.domain_input.setPlaceholderText("SIP域名或IP (默认: 目标IP)")
         self.domain_input.setMinimumWidth(300)
         layout.addWidget(self.domain_input, row, 1)
         
         layout.addWidget(QLabel("Contact域名:"), row, 2)
         self.contact_domain_input = QLineEdit()
+        self.contact_domain_input.setObjectName("contact_domain_input")
         self.contact_domain_input.setPlaceholderText("Contact头域名或IP")
         self.contact_domain_input.setText("20.50.1.10")
         self.contact_domain_input.setMinimumWidth(300)
@@ -102,12 +113,14 @@ class LeakTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("From名称:"), row, 0)
         self.from_name_input = QLineEdit()
+        self.from_name_input.setObjectName("from_name_input")
         self.from_name_input.setPlaceholderText("例如: Bob")
         self.from_name_input.setMinimumWidth(300)
         layout.addWidget(self.from_name_input, row, 1)
         
         layout.addWidget(QLabel("From用户:"), row, 2)
         self.from_user_input = QLineEdit()
+        self.from_user_input.setObjectName("from_user_input")
         self.from_user_input.setText("100")
         self.from_user_input.setPlaceholderText("From头的用户名")
         self.from_user_input.setMinimumWidth(300)
@@ -116,12 +129,14 @@ class LeakTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("From域名:"), row, 0)
         self.from_domain_input = QLineEdit()
+        self.from_domain_input.setObjectName("from_domain_input")
         self.from_domain_input.setPlaceholderText("From头的域名")
         self.from_domain_input.setMinimumWidth(300)
         layout.addWidget(self.from_domain_input, row, 1)
         
         layout.addWidget(QLabel("To名称:"), row, 2)
         self.to_name_input = QLineEdit()
+        self.to_name_input.setObjectName("to_name_input")
         self.to_name_input.setPlaceholderText("例如: Alice")
         self.to_name_input.setMinimumWidth(300)
         layout.addWidget(self.to_name_input, row, 3)
@@ -129,6 +144,7 @@ class LeakTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("To用户:"), row, 0)
         self.to_user_input = QLineEdit()
+        self.to_user_input.setObjectName("to_user_input")
         self.to_user_input.setText("+861088889003")
         self.to_user_input.setPlaceholderText("To头的用户名")
         self.to_user_input.setMinimumWidth(300)
@@ -136,6 +152,7 @@ class LeakTab(BaseTab):
         
         layout.addWidget(QLabel("To域名:"), row, 2)
         self.to_domain_input = QLineEdit()
+        self.to_domain_input.setObjectName("to_domain_input")
         self.to_domain_input.setPlaceholderText("To头的域名")
         self.to_domain_input.setMinimumWidth(300)
         layout.addWidget(self.to_domain_input, row, 3)
@@ -143,6 +160,7 @@ class LeakTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("用户代理:"), row, 0)
         self.ua_input = QLineEdit()
+        self.ua_input.setObjectName("ua_input")
         self.ua_input.setText("pplsip")
         self.ua_input.setPlaceholderText("User-Agent头的值")
         self.ua_input.setMinimumWidth(300)
@@ -150,6 +168,7 @@ class LeakTab(BaseTab):
         
         layout.addWidget(QLabel("本地IP:"), row, 2)
         self.local_ip_input = QLineEdit()
+        self.local_ip_input.setObjectName("local_ip_input")
         self.local_ip_input.setPlaceholderText("本地IP地址(可选)")
         self.local_ip_input.setText("20.50.1.10")
         self.local_ip_input.setMinimumWidth(300)
@@ -162,6 +181,7 @@ class LeakTab(BaseTab):
         output_file_layout = QHBoxLayout()
         
         self.output_file_input = QLineEdit()
+        self.output_file_input.setObjectName("output_file_input")
         self.output_file_input.setText("C:/workspace/IMS/Test Tools/sippts/sippts/sipdigestleak.txt")
         self.output_file_input.setPlaceholderText("认证信息保存文件路径")
         self.output_file_input.setMinimumWidth(240)
@@ -182,6 +202,7 @@ class LeakTab(BaseTab):
         log_file_layout = QHBoxLayout()
         
         self.log_file_input = QLineEdit()
+        self.log_file_input.setObjectName("log_file_input")
         self.log_file_input.setPlaceholderText("日志文件路径(可选)")
         self.log_file_input.setMinimumWidth(240)
         log_file_layout.addWidget(self.log_file_input)
@@ -198,6 +219,7 @@ class LeakTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("详细程度:"), row, 0)
         self.verbose_input = QComboBox()
+        self.verbose_input.setObjectName("verbose_input")
         self.verbose_input.addItems(["0", "1"])
         self.verbose_input.setCurrentText("0")
         self.verbose_input.setMinimumWidth(300)
@@ -205,6 +227,7 @@ class LeakTab(BaseTab):
         
         layout.addWidget(QLabel("伪造IP:"), row, 2)
         self.spoof_ip_input = QLineEdit()
+        self.spoof_ip_input.setObjectName("spoof_ip_input")
         self.spoof_ip_input.setPlaceholderText("伪造的源IP地址(可选)")
         self.spoof_ip_input.setText("20.50.1.10")
         self.spoof_ip_input.setMinimumWidth(300)
@@ -273,6 +296,9 @@ class LeakTab(BaseTab):
     
     def start_module(self):
         """启动SIP Digest Leak测试模块"""
+        # 保存当前输入值
+        self.save_input_values()
+        
         # 清空结果文本
         self.result_text.clear()
         

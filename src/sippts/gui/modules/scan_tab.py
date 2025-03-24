@@ -15,6 +15,9 @@ class ScanTab(BaseTab):
         
         # 初始化UI
         self.setup_ui()
+        
+        # 加载保存的输入值
+        self.load_input_values()
     
     def setup_ui(self):
         """设置UI界面"""
@@ -33,6 +36,7 @@ class ScanTab(BaseTab):
         # 第一行
         layout.addWidget(QLabel("目标 IP/网段:"), row, 0)
         self.ip_input = QLineEdit()
+        self.ip_input.setObjectName("ip_input")
         self.ip_input.setPlaceholderText("例如: mysipserver.com | 192.168.0.10 | 192.168.0.0/24")
         self.ip_input.setMinimumWidth(300)
         self.ip_input.setText("192.168.100.1-192.168.100.255")
@@ -40,6 +44,7 @@ class ScanTab(BaseTab):
         
         layout.addWidget(QLabel("端口:"), row, 2)
         self.port_input = QLineEdit()
+        self.port_input.setObjectName("port_input")
         self.port_input.setText("5060")
         self.port_input.setPlaceholderText("例如: 5060 | 5070,5080 | 5060-5080")
         self.port_input.setMinimumWidth(300)
@@ -52,6 +57,7 @@ class ScanTab(BaseTab):
         file_layout = QHBoxLayout()
         
         self.file_input = QLineEdit()
+        self.file_input.setObjectName("file_input")
         self.file_input.setPlaceholderText("包含多个IP或网段的文件路径")
         self.file_input.setMinimumWidth(240)
         file_layout.addWidget(self.file_input)
@@ -67,6 +73,7 @@ class ScanTab(BaseTab):
         
         layout.addWidget(QLabel("协议:"), row, 2)
         self.proto_input = QComboBox()
+        self.proto_input.setObjectName("proto_input")
         self.proto_input.addItems(["UDP", "TCP", "TLS", "ALL"])
         self.proto_input.setCurrentText("UDP")
         self.proto_input.setMinimumWidth(300)
@@ -75,12 +82,14 @@ class ScanTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("代理:"), row, 0)
         self.proxy_input = QLineEdit()
+        self.proxy_input.setObjectName("proxy_input")
         self.proxy_input.setPlaceholderText("例如: 192.168.1.1 或 192.168.1.1:5070")
         self.proxy_input.setMinimumWidth(300)
         layout.addWidget(self.proxy_input, row, 1)
         
         layout.addWidget(QLabel("扫描方法:"), row, 2)
         self.method_input = QComboBox()
+        self.method_input.setObjectName("method_input")
         self.method_input.addItems(["OPTIONS", "REGISTER", "INVITE"])
         self.method_input.setCurrentText("OPTIONS")
         self.method_input.setMinimumWidth(300)
@@ -89,12 +98,14 @@ class ScanTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("域名:"), row, 0)
         self.domain_input = QLineEdit()
+        self.domain_input.setObjectName("domain_input")
         self.domain_input.setPlaceholderText("SIP域名或IP (默认: 目标IP)")
         self.domain_input.setMinimumWidth(300)
         layout.addWidget(self.domain_input, row, 1)
         
         layout.addWidget(QLabel("Contact域名:"), row, 2)
         self.contact_domain_input = QLineEdit()
+        self.contact_domain_input.setObjectName("contact_domain_input")
         self.contact_domain_input.setPlaceholderText("Contact头域名或IP, 例如: 10.0.1.2")
         self.contact_domain_input.setMinimumWidth(300)
         layout.addWidget(self.contact_domain_input, row, 3)
@@ -102,12 +113,14 @@ class ScanTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("From名称:"), row, 0)
         self.from_name_input = QLineEdit()
+        self.from_name_input.setObjectName("from_name_input")
         self.from_name_input.setPlaceholderText("例如: Bob")
         self.from_name_input.setMinimumWidth(300)
         layout.addWidget(self.from_name_input, row, 1)
         
         layout.addWidget(QLabel("From用户:"), row, 2)
         self.from_user_input = QLineEdit()
+        self.from_user_input.setObjectName("from_user_input")
         self.from_user_input.setText("+861088889005")
         self.from_user_input.setPlaceholderText("From头的用户名")
         self.from_user_input.setMinimumWidth(300)
@@ -116,12 +129,14 @@ class ScanTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("From域名:"), row, 0)
         self.from_domain_input = QLineEdit()
+        self.from_domain_input.setObjectName("from_domain_input")
         self.from_domain_input.setPlaceholderText("From头的域名")
         self.from_domain_input.setMinimumWidth(300)
         layout.addWidget(self.from_domain_input, row, 1)
         
         layout.addWidget(QLabel("To名称:"), row, 2)
         self.to_name_input = QLineEdit()
+        self.to_name_input.setObjectName("to_name_input")
         self.to_name_input.setPlaceholderText("例如: Alice")
         self.to_name_input.setMinimumWidth(300)
         layout.addWidget(self.to_name_input, row, 3)
@@ -129,6 +144,7 @@ class ScanTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("To用户:"), row, 0)
         self.to_user_input = QLineEdit()
+        self.to_user_input.setObjectName("to_user_input")
         self.to_user_input.setText("+861088889005")
         self.to_user_input.setPlaceholderText("To头的用户名")
         self.to_user_input.setMinimumWidth(300)
@@ -136,6 +152,7 @@ class ScanTab(BaseTab):
         
         layout.addWidget(QLabel("To域名:"), row, 2)
         self.to_domain_input = QLineEdit()
+        self.to_domain_input.setObjectName("to_domain_input")
         self.to_domain_input.setPlaceholderText("To头的域名")
         self.to_domain_input.setMinimumWidth(300)
         layout.addWidget(self.to_domain_input, row, 3)
@@ -143,6 +160,7 @@ class ScanTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("User-Agent:"), row, 0)
         self.ua_input = QLineEdit()
+        self.ua_input.setObjectName("ua_input")
         self.ua_input.setText("pplsip")
         self.ua_input.setPlaceholderText("User-Agent头的值")
         self.ua_input.setMinimumWidth(300)
@@ -150,6 +168,7 @@ class ScanTab(BaseTab):
         
         layout.addWidget(QLabel("线程数:"), row, 2)
         self.threads_input = QLineEdit()
+        self.threads_input.setObjectName("threads_input")
         self.threads_input.setText("100")
         self.threads_input.setPlaceholderText("扫描使用的线程数")
         self.threads_input.setMinimumWidth(300)
@@ -158,6 +177,7 @@ class ScanTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("超时(秒):"), row, 0)
         self.timeout_input = QLineEdit()
+        self.timeout_input.setObjectName("timeout_input")
         self.timeout_input.setText("5")
         self.timeout_input.setPlaceholderText("Socket超时时间(秒)")
         self.timeout_input.setMinimumWidth(300)
@@ -165,6 +185,7 @@ class ScanTab(BaseTab):
         
         layout.addWidget(QLabel("详细程度:"), row, 2)
         self.verbose_input = QComboBox()
+        self.verbose_input.setObjectName("verbose_input")
         self.verbose_input.addItems(["0", "1", "2"])
         self.verbose_input.setCurrentText("0")
         self.verbose_input.setMinimumWidth(300)
@@ -177,6 +198,7 @@ class ScanTab(BaseTab):
         output_file_layout = QHBoxLayout()
         
         self.output_file_input = QLineEdit()
+        self.output_file_input.setObjectName("output_file_input")
         self.output_file_input.setPlaceholderText("保存扫描结果的文件路径")
         self.output_file_input.setMinimumWidth(240)
         output_file_layout.addWidget(self.output_file_input)
@@ -196,6 +218,7 @@ class ScanTab(BaseTab):
         output_ip_file_layout = QHBoxLayout()
         
         self.output_ip_file_input = QLineEdit()
+        self.output_ip_file_input.setObjectName("output_ip_file_input")
         self.output_ip_file_input.setPlaceholderText("保存发现的IP的文件路径")
         self.output_ip_file_input.setMinimumWidth(240)
         output_ip_file_layout.addWidget(self.output_ip_file_input)
@@ -212,6 +235,7 @@ class ScanTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("伪造源IP:"), row, 0)
         self.spoof_ip_input = QLineEdit()
+        self.spoof_ip_input.setObjectName("spoof_ip_input")
         self.spoof_ip_input.setPlaceholderText("伪造的源IP地址 (仅UDP协议有效)")
         self.spoof_ip_input.setMinimumWidth(300)
         layout.addWidget(self.spoof_ip_input, row, 1)
@@ -273,6 +297,9 @@ class ScanTab(BaseTab):
     
     def start_module(self):
         """启动SIP扫描模块"""
+        # 保存当前输入值
+        self.save_input_values()
+        
         # 清空结果文本
         self.result_text.clear()
         

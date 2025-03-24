@@ -15,6 +15,9 @@ class SendTab(BaseTab):
         
         # 初始化UI
         self.setup_ui()
+        
+        # 从配置加载输入值
+        self.load_input_values()
     
     def setup_ui(self):
         """设置UI界面"""
@@ -32,6 +35,7 @@ class SendTab(BaseTab):
         row = 0
         layout.addWidget(QLabel("目标 IP:"), row, 0)
         self.ip_input = QLineEdit()
+        self.ip_input.setObjectName("ip_input")
         self.ip_input.setPlaceholderText("目标主机IP地址")
         self.ip_input.setText("192.168.100.144")
         self.ip_input.setMinimumWidth(200)
@@ -39,6 +43,7 @@ class SendTab(BaseTab):
         
         layout.addWidget(QLabel("端口:"), row, 2)
         self.port_input = QLineEdit()
+        self.port_input.setObjectName("port_input")
         self.port_input.setText("5060")
         self.port_input.setPlaceholderText("目标端口")
         self.port_input.setMinimumWidth(200)
@@ -47,12 +52,14 @@ class SendTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("本地端口:"), row, 0)
         self.lport_input = QLineEdit()
+        self.lport_input.setObjectName("lport_input")
         self.lport_input.setPlaceholderText("本地端口(可选)")
         self.lport_input.setMinimumWidth(200)
         layout.addWidget(self.lport_input, row, 1)
 
         layout.addWidget(QLabel("本地IP:"), row, 2)
         self.local_ip_input = QLineEdit()
+        self.local_ip_input.setObjectName("local_ip_input")
         self.local_ip_input.setPlaceholderText("本地IP地址(可选)")
         self.local_ip_input.setMinimumWidth(200)
         layout.addWidget(self.local_ip_input, row, 3)
@@ -60,6 +67,7 @@ class SendTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("伪造源IP:"), row, 0)
         self.spoof_ip_input = QLineEdit()
+        self.spoof_ip_input.setObjectName("spoof_ip_input")
         self.spoof_ip_input.setPlaceholderText("伪造的源IP地址(需要管理员权限)")
         self.spoof_ip_input.setText("20.50.1.10")
         self.spoof_ip_input.setMinimumWidth(200)
@@ -77,6 +85,7 @@ class SendTab(BaseTab):
         file_layout = QHBoxLayout()
         
         self.template_input = QLineEdit()
+        self.template_input.setObjectName("template_input")
         self.template_input.setPlaceholderText("SIP消息模板文件路径")
         self.template_input.setMinimumWidth(140)
         file_layout.addWidget(self.template_input)
@@ -92,6 +101,7 @@ class SendTab(BaseTab):
         
         layout.addWidget(QLabel("协议:"), row, 2)
         self.proto_input = QComboBox()
+        self.proto_input.setObjectName("proto_input")
         self.proto_input.addItems(["UDP", "TCP", "TLS"])
         self.proto_input.setCurrentText("UDP")
         self.proto_input.setMinimumWidth(200)
@@ -100,12 +110,14 @@ class SendTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("代理:"), row, 0)
         self.proxy_input = QLineEdit()
+        self.proxy_input.setObjectName("proxy_input")
         self.proxy_input.setPlaceholderText("例如: 192.168.1.1 或 192.168.1.1:5070")
         self.proxy_input.setMinimumWidth(200)
         layout.addWidget(self.proxy_input, row, 1)
         
         layout.addWidget(QLabel("方法:"), row, 2)
         self.method_input = QComboBox()
+        self.method_input.setObjectName("method_input")
         self.method_input.addItems([
             "REGISTER", "SUBSCRIBE", "NOTIFY", "PUBLISH", "MESSAGE",
             "INVITE", "OPTIONS", "ACK", "CANCEL", "BYE", "PRACK",
@@ -118,6 +130,7 @@ class SendTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("域名:"), row, 0)
         self.domain_input = QLineEdit()
+        self.domain_input.setObjectName("domain_input")
         self.domain_input.setPlaceholderText("SIP域名或IP (默认: 目标IP)")
         self.domain_input.setMinimumWidth(200)
         self.domain_input.setText("dra.ims.sdt")
@@ -125,6 +138,7 @@ class SendTab(BaseTab):
         
         layout.addWidget(QLabel("Contact域名:"), row, 2)
         self.contact_domain_input = QLineEdit()
+        self.contact_domain_input.setObjectName("contact_domain_input")
         self.contact_domain_input.setPlaceholderText("Contact头域名或IP")
         self.contact_domain_input.setMinimumWidth(200)
         layout.addWidget(self.contact_domain_input, row, 3)
@@ -132,12 +146,14 @@ class SendTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("From名称:"), row, 0)
         self.from_name_input = QLineEdit()
+        self.from_name_input.setObjectName("from_name_input")
         self.from_name_input.setPlaceholderText("例如: Bob")
         self.from_name_input.setMinimumWidth(200)
         layout.addWidget(self.from_name_input, row, 1)
         
         layout.addWidget(QLabel("From用户:"), row, 2)
         self.from_user_input = QLineEdit()
+        self.from_user_input.setObjectName("from_user_input")
         self.from_user_input.setText("+861088889005")
         self.from_user_input.setPlaceholderText("From头的用户名")
         self.from_user_input.setMinimumWidth(200)
@@ -146,6 +162,7 @@ class SendTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("From域名:"), row, 0)
         self.from_domain_input = QLineEdit()
+        self.from_domain_input.setObjectName("from_domain_input")
         self.from_domain_input.setPlaceholderText("From头的域名")
         self.from_domain_input.setMinimumWidth(200)
         self.from_domain_input.setText("dra.ims.sdt")
@@ -153,6 +170,7 @@ class SendTab(BaseTab):
 
         layout.addWidget(QLabel("From标签:"), row, 2)
         self.from_tag_input = QLineEdit()
+        self.from_tag_input.setObjectName("from_tag_input")
         self.from_tag_input.setPlaceholderText("From头的标签值")
         self.from_tag_input.setMinimumWidth(200)
         layout.addWidget(self.from_tag_input, row, 3)
@@ -160,12 +178,14 @@ class SendTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("To名称:"), row, 0)
         self.to_name_input = QLineEdit()
+        self.to_name_input.setObjectName("to_name_input")
         self.to_name_input.setPlaceholderText("例如: Alice")
         self.to_name_input.setMinimumWidth(200)
         layout.addWidget(self.to_name_input, row, 1)
         
         layout.addWidget(QLabel("To用户:"), row, 2)
         self.to_user_input = QLineEdit()
+        self.to_user_input.setObjectName("to_user_input")
         self.to_user_input.setText("+861088889005")
         self.to_user_input.setPlaceholderText("To头的用户名")
         self.to_user_input.setMinimumWidth(200)
@@ -174,6 +194,7 @@ class SendTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("To域名:"), row, 0)
         self.to_domain_input = QLineEdit()
+        self.to_domain_input.setObjectName("to_domain_input")
         self.to_domain_input.setPlaceholderText("To头的域名")
         self.to_domain_input.setMinimumWidth(200)
         self.to_domain_input.setText("dra.ims.sdt")
@@ -181,6 +202,7 @@ class SendTab(BaseTab):
 
         layout.addWidget(QLabel("To标签:"), row, 2)
         self.to_tag_input = QLineEdit()
+        self.to_tag_input.setObjectName("to_tag_input")
         self.to_tag_input.setPlaceholderText("To头的标签值")
         self.to_tag_input.setMinimumWidth(200)
         layout.addWidget(self.to_tag_input, row, 3)
@@ -188,6 +210,7 @@ class SendTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("认证用户:"), row, 0)
         self.auth_user_input = QLineEdit()
+        self.auth_user_input.setObjectName("auth_user_input")
         self.auth_user_input.setPlaceholderText("认证用户名")
         self.auth_user_input.setMinimumWidth(200)
         self.auth_user_input.setText("+861088889005")
@@ -195,6 +218,7 @@ class SendTab(BaseTab):
         
         layout.addWidget(QLabel("认证密码:"), row, 2)
         self.auth_pass_input = QLineEdit()
+        self.auth_pass_input.setObjectName("auth_pass_input")
         self.auth_pass_input.setPlaceholderText("认证密码")
         self.auth_pass_input.setMinimumWidth(200)
         self.auth_pass_input.setText("123456")
@@ -203,6 +227,7 @@ class SendTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("User-Agent:"), row, 0)
         self.ua_input = QLineEdit()
+        self.ua_input.setObjectName("ua_input")
         self.ua_input.setText("pplsip")
         self.ua_input.setPlaceholderText("User-Agent头的值")
         self.ua_input.setMinimumWidth(200)
@@ -210,6 +235,7 @@ class SendTab(BaseTab):
 
         layout.addWidget(QLabel("超时时间(秒):"), row, 2)
         self.timeout_input = QLineEdit()
+        self.timeout_input.setObjectName("timeout_input")
         self.timeout_input.setText("5")
         self.timeout_input.setPlaceholderText("请求超时时间")
         self.timeout_input.setMinimumWidth(200)
@@ -218,12 +244,14 @@ class SendTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("P-Preferred-Identity:"), row, 0)
         self.ppi_input = QLineEdit()
+        self.ppi_input.setObjectName("ppi_input")
         self.ppi_input.setPlaceholderText("P-Preferred-Identity头的值")
         self.ppi_input.setMinimumWidth(200)
         layout.addWidget(self.ppi_input, row, 1)
 
         layout.addWidget(QLabel("P-Asserted-Identity:"), row, 2)
         self.pai_input = QLineEdit()
+        self.pai_input.setObjectName("pai_input")
         self.pai_input.setPlaceholderText("P-Asserted-Identity头的值")
         self.pai_input.setMinimumWidth(200)
         layout.addWidget(self.pai_input, row, 3)
@@ -231,12 +259,14 @@ class SendTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("Branch:"), row, 0)
         self.branch_input = QLineEdit()
+        self.branch_input.setObjectName("branch_input")
         self.branch_input.setPlaceholderText("Via头的branch参数")
         self.branch_input.setMinimumWidth(200)
         layout.addWidget(self.branch_input, row, 1)
 
         layout.addWidget(QLabel("Call-ID:"), row, 2)
         self.callid_input = QLineEdit()
+        self.callid_input.setObjectName("callid_input")
         self.callid_input.setPlaceholderText("Call-ID头的值")
         self.callid_input.setMinimumWidth(200)
         layout.addWidget(self.callid_input, row, 3)
@@ -244,6 +274,7 @@ class SendTab(BaseTab):
         row += 1
         layout.addWidget(QLabel("CSeq:"), row, 0)
         self.cseq_input = QLineEdit()
+        self.cseq_input.setObjectName("cseq_input")
         self.cseq_input.setText("1")
         self.cseq_input.setPlaceholderText("CSeq头的序号值")
         self.cseq_input.setMinimumWidth(200)
@@ -251,6 +282,7 @@ class SendTab(BaseTab):
 
         layout.addWidget(QLabel("自定义头部:"), row, 2)
         self.header_input = QLineEdit()
+        self.header_input.setObjectName("header_input")
         self.header_input.setPlaceholderText("自定义SIP头部")
         self.header_input.setMinimumWidth(200)
         layout.addWidget(self.header_input, row, 3)
@@ -261,10 +293,12 @@ class SendTab(BaseTab):
         sdp_layout = QHBoxLayout()
         
         self.sdp_check = QCheckBox("包含SDP")
+        self.sdp_check.setObjectName("sdp_check")
         self.sdp_check.setChecked(False)
         sdp_layout.addWidget(self.sdp_check)
         
         self.sdes_check = QCheckBox("包含SDES")
+        self.sdes_check.setObjectName("sdes_check")
         self.sdes_check.setChecked(False)
         sdp_layout.addWidget(self.sdes_check)
         
@@ -276,10 +310,12 @@ class SendTab(BaseTab):
         other_layout = QHBoxLayout()
         
         self.nocontact_check = QCheckBox("不包含Contact头")
+        self.nocontact_check.setObjectName("nocontact_check")
         self.nocontact_check.setChecked(False)
         other_layout.addWidget(self.nocontact_check)
         
         self.verbose_check = QCheckBox("详细输出")
+        self.verbose_check.setObjectName("verbose_check")
         self.verbose_check.setChecked(False)
         other_layout.addWidget(self.verbose_check)
         
@@ -293,6 +329,7 @@ class SendTab(BaseTab):
         output_layout = QHBoxLayout()
         
         self.output_input = QLineEdit()
+        self.output_input.setObjectName("output_input")
         self.output_input.setPlaceholderText("输出文件路径")
         self.output_input.setMinimumWidth(140)
         output_layout.addWidget(self.output_input)
@@ -349,6 +386,9 @@ class SendTab(BaseTab):
     
     def start_module(self):
         """启动SIP消息发送模块"""
+        # 保存当前输入值
+        self.save_input_values()
+        
         # 清空结果文本
         self.result_text.clear()
         
