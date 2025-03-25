@@ -123,6 +123,13 @@ class RTPHijackTab(BaseTab):
         self.call_id_input.setMinimumWidth(300)
         layout.addWidget(self.call_id_input, row, 1)
         
+        layout.addWidget(QLabel("Contact域名:"), row, 2)
+        self.contact_domain_input = QLineEdit()
+        self.contact_domain_input.setObjectName("contact_domain_input")
+        self.contact_domain_input.setPlaceholderText("Contact头域名或IP")
+        self.contact_domain_input.setMinimumWidth(200)
+        layout.addWidget(self.contact_domain_input, row, 3)
+        
         # RTP设置
         row += 1
         layout.addWidget(QLabel("RTP负载类型:"), row, 0)
@@ -226,6 +233,7 @@ class RTPHijackTab(BaseTab):
         to_user = self.to_user_input.text().strip()
         domain = self.domain_input.text().strip()
         spoof_ip = self.spoof_ip_input.text().strip()
+        contact_domain = self.contact_domain_input.text().strip()
         payload_type = self.payload_input.currentText()
         rtp_port = self.rtp_port_input.text().strip()
         timeout = self.timeout_input.text().strip()
@@ -248,6 +256,7 @@ class RTPHijackTab(BaseTab):
         self.module_instance.from_user = from_user
         self.module_instance.to_user = to_user
         self.module_instance.domain = domain
+        self.module_instance.contact_domain = contact_domain
         self.module_instance.spoof_ip = spoof_ip
         self.module_instance.rtp_payload_type = payload_type
         

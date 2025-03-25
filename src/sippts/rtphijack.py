@@ -27,18 +27,38 @@ try:
 except ImportError:
     PYAUDIO_AVAILABLE = False
     print("警告: PyAudio未安装，将无法实时播放音频。可以使用pip install PyAudio安装。")
-from .lib.functions import (
-    create_message,
-    get_free_port,
-    parse_message,
-    parse_digest,
-    generate_random_string,
-    calculateHash,
-    get_machine_default_ip,
-    extract_rtp_info,
-)
-from .lib.color import Color
-from .lib.logos import Logo
+
+# 修改相对导入为绝对导入
+try:
+    from sippts.lib.functions import (
+        create_message,
+        get_free_port,
+        parse_message,
+        parse_digest,
+        generate_random_string,
+        calculateHash,
+        get_machine_default_ip,
+        extract_rtp_info,
+    )
+    from sippts.lib.color import Color
+    from sippts.lib.logos import Logo
+except ImportError:
+    # 如果作为脚本直接运行，使用相对路径导入
+    import os
+    import sys
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from sippts.lib.functions import (
+        create_message,
+        get_free_port,
+        parse_message,
+        parse_digest,
+        generate_random_string,
+        calculateHash,
+        get_machine_default_ip,
+        extract_rtp_info,
+    )
+    from sippts.lib.color import Color
+    from sippts.lib.logos import Logo
 
 # RTP负载类型定义
 RTP_PAYLOAD_TYPES = {
@@ -392,15 +412,25 @@ class RTPHijack:
         self.rtp_local_port = rtp_port
         
         # 创建自定义SDP
-        custom_sdp = f"""v=0
-        o=pplsip {int(time.time())} {int(time.time())} IN IP4 {local_ip}
-        s=SIP Call
-        c=IN IP4 {local_ip}
-        t=0 0
-        m=audio {rtp_port} RTP/AVP {payload_id}
-        a=rtpmap:{payload_id} PCMU/8000
-        a=sendrecv
-        """
+        sdp = ""
+        sdp += "v=0\r\n"
+        sdp += f"o=- {int(time.time())} {int(time.time())} IN IP4 {local_ip}\r\n"
+        sdp += "s=SIPPTS\r\n"
+        sdp += f"c=IN IP4 {local_ip}\r\n"
+        sdp += "t=0 0\r\n"
+        sdp += f"m=audio {rtp_port} RTP/AVP 0 9 8 18 3 110 101\r\n"
+        sdp += "a=rtpmap:0 PCMU/8000\r\n"
+        sdp += "a=rtpmap:9 G722/8000\r\n"
+        sdp += "a=rtpmap:8 PCMA/8000\r\n"
+        sdp += "a=rtpmap:18 G729/8000\r\n"
+        sdp += "a=fmtp:18 annexb=no\r\n"
+        sdp += "a=rtpmap:3 GSM/8000\r\n"
+        sdp += "a=rtpmap:110 speex/8000\r\n"
+        sdp += "a=rtpmap:101 telephone-event/8000\r\n"
+        sdp += "a=fmtp:101 0-16\r\n"
+        sdp += "a=ptime:20\r\n"
+        sdp += "a=maxptime:60\r\n"
+        sdp += "a=sendrecv\r\n"
         
         # 使用create_message函数创建标准SIP消息
         msg = create_message(
@@ -435,8 +465,8 @@ class RTPHijack:
         )
         
         # 手动替换Content-Type和添加自定义SDP
-        msg = msg.replace("Content-Length: 0", f"Content-Type: application/sdp\r\nContent-Length: {len(custom_sdp)}")
-        msg += custom_sdp
+        msg = msg.replace("Content-Length: 0", f"Content-Type: application/sdp\r\nContent-Length: {len(sdp)}")
+        msg += sdp
         
         return msg
     
@@ -549,8 +579,14 @@ class RTPHijack:
                         # 将编码的音频数据转换为PCM格式
                         if payload_type == 0:  # PCMU
                             pcm_data = self.ulaw2linear(audio_data)
+                            # 确保数据长度是偶数（16位采样）
+                            if len(pcm_data) % 2 != 0:
+                                pcm_data = pcm_data[:-1]
                         elif payload_type == 8:  # PCMA
                             pcm_data = self.alaw2linear(audio_data)
+                            # 确保数据长度是偶数（16位采样）
+                            if len(pcm_data) % 2 != 0:
+                                pcm_data = pcm_data[:-1]
                         
                         # 如果成功转换了数据，将其添加到播放缓冲区
                         if pcm_data:
@@ -573,9 +609,10 @@ class RTPHijack:
             # 初始化PyAudio
             self.pyaudio_instance = pyaudio.PyAudio()
             
-            # 默认采样率和声道
-            sample_rate = 8000  # 适用于G.711 (PCMU/PCMA)
-            channels = 1  # 单声道
+            # 设置音频参数
+            self.sample_rate = 8000  # G.711标准采样率
+            self.channels = 1        # 单声道
+            self.chunk_size = 160    # 20ms @ 8kHz = 160个采样点
             
             # 创建回调函数，负责从缓冲区获取音频数据并发送到音频设备
             def audio_callback(in_data, frame_count, time_info, status):
@@ -586,6 +623,9 @@ class RTPHijack:
                 with self.audio_buffer_lock:
                     while len(output_data) < bytes_needed and self.audio_buffer:
                         buffer = self.audio_buffer.pop(0)
+                        # 确保数据长度是偶数（16位采样）
+                        if len(buffer) % 2 != 0:
+                            buffer = buffer[:-1]
                         output_data.extend(buffer)
                 
                 # 如果没有足够的数据，用静音填充
@@ -598,10 +638,10 @@ class RTPHijack:
             # 打开音频流
             self.audio_stream = self.pyaudio_instance.open(
                 format=pyaudio.paInt16,
-                channels=channels,
-                rate=sample_rate,
+                channels=self.channels,
+                rate=self.sample_rate,
                 output=True,
-                frames_per_buffer=160,  # G.711每包通常20ms @8kHz = 160个采样点
+                frames_per_buffer=self.chunk_size,
                 stream_callback=audio_callback
             )
             
@@ -703,49 +743,23 @@ class RTPHijack:
     def ulaw2linear(self, ulaw_data):
         """
         将G.711 μ-law编码数据转换为线性PCM
+        使用标准的μ-law解码算法
         """
         result = bytearray()
-        ulaw_expand = [
-            -32124, -31100, -30076, -29052, -28028, -27004, -25980, -24956,
-            -23932, -22908, -21884, -20860, -19836, -18812, -17788, -16764,
-            -15996, -15484, -14972, -14460, -13948, -13436, -12924, -12412,
-            -11900, -11388, -10876, -10364, -9852, -9340, -8828, -8316,
-            -7932, -7676, -7420, -7164, -6908, -6652, -6396, -6140,
-            -5884, -5628, -5372, -5116, -4860, -4604, -4348, -4092,
-            -3900, -3772, -3644, -3516, -3388, -3260, -3132, -3004,
-            -2876, -2748, -2620, -2492, -2364, -2236, -2108, -1980,
-            -1884, -1820, -1756, -1692, -1628, -1564, -1500, -1436,
-            -1372, -1308, -1244, -1180, -1116, -1052, -988, -924,
-            -876, -844, -812, -780, -748, -716, -684, -652,
-            -620, -588, -556, -524, -492, -460, -428, -396,
-            -372, -356, -340, -324, -308, -292, -276, -260,
-            -244, -228, -212, -196, -180, -164, -148, -132,
-            -120, -112, -104, -96, -88, -80, -72, -64,
-            -56, -48, -40, -32, -24, -16, -8, 0,
-            32124, 31100, 30076, 29052, 28028, 27004, 25980, 24956,
-            23932, 22908, 21884, 20860, 19836, 18812, 17788, 16764,
-            15996, 15484, 14972, 14460, 13948, 13436, 12924, 12412,
-            11900, 11388, 10876, 10364, 9852, 9340, 8828, 8316,
-            7932, 7676, 7420, 7164, 6908, 6652, 6396, 6140,
-            5884, 5628, 5372, 5116, 4860, 4604, 4348, 4092,
-            3900, 3772, 3644, 3516, 3388, 3260, 3132, 3004,
-            2876, 2748, 2620, 2492, 2364, 2236, 2108, 1980,
-            1884, 1820, 1756, 1692, 1628, 1564, 1500, 1436,
-            1372, 1308, 1244, 1180, 1116, 1052, 988, 924,
-            876, 844, 812, 780, 748, 716, 684, 652,
-            620, 588, 556, 524, 492, 460, 428, 396,
-            372, 356, 340, 324, 308, 292, 276, 260,
-            244, 228, 212, 196, 180, 164, 148, 132,
-            120, 112, 104, 96, 88, 80, 72, 64,
-            56, 48, 40, 32, 24, 16, 8, 0
-        ]
         
         for byte in ulaw_data:
-            # 反转位
+            # 1. 反转位
             byte = ~byte & 0xFF
-            # 获取扩展值
-            sample = ulaw_expand[byte]
-            # 将16位有符号整数转换为两个字节（小端序）
+            
+            # 2. 提取符号位和幅度
+            sign = -1 if (byte & 0x80) else 1
+            magnitude = ((byte & 0x0F) << 3) + 0x84
+            magnitude <<= ((byte & 0x70) >> 4)
+            
+            # 3. 应用μ-law扩展曲线
+            sample = sign * magnitude
+            
+            # 4. 将16位有符号整数转换为两个字节（小端序）
             result.extend(struct.pack('<h', sample))
         
         return result
@@ -753,49 +767,23 @@ class RTPHijack:
     def alaw2linear(self, alaw_data):
         """
         将G.711 A-law编码数据转换为线性PCM
+        使用标准的A-law解码算法
         """
         result = bytearray()
-        alaw_expand = [
-            -5504, -5248, -6016, -5760, -4480, -4224, -4992, -4736,
-            -7552, -7296, -8064, -7808, -6528, -6272, -7040, -6784,
-            -2752, -2624, -3008, -2880, -2240, -2112, -2496, -2368,
-            -3776, -3648, -4032, -3904, -3264, -3136, -3520, -3392,
-            -22016, -20992, -24064, -23040, -17920, -16896, -19968, -18944,
-            -30208, -29184, -32256, -31232, -26112, -25088, -28160, -27136,
-            -11008, -10496, -12032, -11520, -8960, -8448, -9984, -9472,
-            -15104, -14592, -16128, -15616, -13056, -12544, -14080, -13568,
-            -344, -328, -376, -360, -280, -264, -312, -296,
-            -472, -456, -504, -488, -408, -392, -440, -424,
-            -88, -72, -120, -104, -24, -8, -56, -40,
-            -216, -200, -248, -232, -152, -136, -184, -168,
-            -1376, -1312, -1504, -1440, -1120, -1056, -1248, -1184,
-            -1888, -1824, -2016, -1952, -1632, -1568, -1760, -1696,
-            -688, -656, -752, -720, -560, -528, -624, -592,
-            -944, -912, -1008, -976, -816, -784, -880, -848,
-            5504, 5248, 6016, 5760, 4480, 4224, 4992, 4736,
-            7552, 7296, 8064, 7808, 6528, 6272, 7040, 6784,
-            2752, 2624, 3008, 2880, 2240, 2112, 2496, 2368,
-            3776, 3648, 4032, 3904, 3264, 3136, 3520, 3392,
-            22016, 20992, 24064, 23040, 17920, 16896, 19968, 18944,
-            30208, 29184, 32256, 31232, 26112, 25088, 28160, 27136,
-            11008, 10496, 12032, 11520, 8960, 8448, 9984, 9472,
-            15104, 14592, 16128, 15616, 13056, 12544, 14080, 13568,
-            344, 328, 376, 360, 280, 264, 312, 296,
-            472, 456, 504, 488, 408, 392, 440, 424,
-            88, 72, 120, 104, 24, 8, 56, 40,
-            216, 200, 248, 232, 152, 136, 184, 168,
-            1376, 1312, 1504, 1440, 1120, 1056, 1248, 1184,
-            1888, 1824, 2016, 1952, 1632, 1568, 1760, 1696,
-            688, 656, 752, 720, 560, 528, 624, 592,
-            944, 912, 1008, 976, 816, 784, 880, 848
-        ]
         
         for byte in alaw_data:
-            # 反转最高位
-            byte ^= 0x55
-            # 获取扩展值
-            sample = alaw_expand[byte & 0xFF]
-            # 将16位有符号整数转换为两个字节（小端序）
+            # 1. 反转位
+            byte = ~byte & 0xFF
+            
+            # 2. 提取符号位和幅度
+            sign = -1 if (byte & 0x80) else 1
+            magnitude = ((byte & 0x0F) << 4) + 0x108
+            magnitude <<= ((byte & 0x70) >> 4)
+            
+            # 3. 应用A-law扩展曲线
+            sample = sign * magnitude
+            
+            # 4. 将16位有符号整数转换为两个字节（小端序）
             result.extend(struct.pack('<h', sample))
         
         return result
@@ -831,7 +819,6 @@ class RTPHijack:
         """停止所有活动"""
         self.rtp_running = False
         self.stop_sniffing = True
-        print(f"{self.c.BYELLOW}\n您按下了Ctrl+C!")
         print(f"{self.c.BWHITE}[*] 正在停止RTP劫持...")
         
         # 停止音频播放
@@ -839,3 +826,48 @@ class RTPHijack:
             self.stop_audio_playback()
             
         print(self.c.WHITE)
+
+    def test_pcmu_to_wav(self, input_file, output_file):
+        """
+        测试PCMU到WAV的转换功能
+        
+        Args:
+            input_file (str): PCMU格式的输入文件路径
+            output_file (str): 输出的WAV文件路径
+        """
+        try:
+            print(f"{self.c.BWHITE}[*] 开始测试PCMU到WAV的转换...")
+            print(f"{self.c.BWHITE}    输入文件: {input_file}")
+            print(f"{self.c.BWHITE}    输出文件: {output_file}")
+            
+            # 读取PCMU文件
+            with open(input_file, 'rb') as f:
+                pcmu_data = f.read()
+            
+            # 转换为PCM
+            pcm_data = self.ulaw2linear(pcmu_data)
+            
+            # 创建WAV文件
+            with wave.open(output_file, 'wb') as wav_file:
+                wav_file.setnchannels(1)  # 单声道
+                wav_file.setsampwidth(2)  # 16位采样
+                wav_file.setframerate(8000)  # 8kHz采样率
+                wav_file.writeframes(pcm_data)
+            
+            print(f"{self.c.BGREEN}[✓] 转换完成")
+            print(f"{self.c.BWHITE}    - 输入文件大小: {len(pcmu_data)} 字节")
+            print(f"{self.c.BWHITE}    - 输出文件大小: {len(pcm_data)} 字节")
+            print(f"{self.c.BWHITE}    - 音频时长: {len(pcm_data) / 16000:.2f} 秒")
+            
+        except Exception as e:
+            print(f"{self.c.RED}[!] 转换失败: {str(e)}{self.c.WHITE}")
+            import traceback
+            traceback.print_exc()
+
+if __name__ == "__main__":
+    # 测试PCMU到WAV的转换
+    hijack = RTPHijack()
+    # 使用原始字符串表示法处理Windows路径
+    input_file = r"C:\workspace\IMS\Test Tools\sippts\sippts\Saved RTP Audio.raw"
+    output_file = "test111.wav"
+    hijack.test_pcmu_to_wav(input_file, output_file)

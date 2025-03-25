@@ -310,7 +310,7 @@ def create_message(
     if method == "REGISTER" or method == "NOTIFY" or method == "ACK":
         starting_line = "%s sip:%s SIP/2.0" % (method, domain)
     elif method == "INVITE":
-        starting_line = "%s sip:%s@%s:%s SIP/2.0" % (method, touser, contactdomain, rport)
+        starting_line = "%s sip:%s@%s:%s SIP/2.0" % (method, touser, domain, rport)
     else:
         starting_line = "%s sip:%s@%s SIP/2.0" % (method, touser, domain)
 
@@ -416,7 +416,6 @@ def create_message(
     if method == "REGISTER":
         headers["Expires"] = "%s" % expires
 
-    print(f"###############sdp mode = {withsdp}")
     if withsdp is 1:
         headers["Content-Type"] = "application/sdp"
         headers["Accept"] = "application/sdp, application/dtmf-relay"
@@ -497,8 +496,7 @@ def create_message(
 
     msg += "\r\n"
 
-    print(f"create message: {msg}")
-    print(f"sdp = {sdp}")
+    # print(f"create message: {msg}")
     return msg
 
 

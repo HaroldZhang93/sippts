@@ -2,9 +2,13 @@ import sys
 import re
 import traceback
 import os
+import warnings
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget, QMessageBox
 from PyQt5.QtCore import QThread, pyqtSignal, QObject, QEvent
 from PyQt5.QtGui import QTextCharFormat, QColor, QTextCursor, QIcon
+
+# 忽略PyQt5相关的废弃警告
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # 导入模块标签页
 from sippts.gui.modules.rtphijack_tab import RTPHijackTab
@@ -214,12 +218,23 @@ class MainWindow(QMainWindow):
     def stop_module(self):
         """停止当前运行的模块"""
         if self.current_worker and self.current_worker.isRunning():
+            # 获取当前活动的标签页
+            current_tab = self.tabs.currentWidget()
+            
+            # 如果当前标签页有module_instance属性，调用其stop方法
+            if hasattr(current_tab, 'module_instance') and current_tab.module_instance:
+                try:
+                    current_tab.module_instance.stop()
+                except Exception as e:
+                    print(f"停止模块时出错: {str(e)}")
+                    traceback.print_exc()
+            
+            # 停止工作线程
             self.current_worker.terminate()
             self.current_worker.wait()
             self.current_worker = None
             
             # 通知当前活动的标签页模块已停止
-            current_tab = self.tabs.currentWidget()
             if hasattr(current_tab, 'on_module_stopped'):
                 current_tab.on_module_stopped()
     
