@@ -280,7 +280,7 @@ class SipSend:
         if self.lport == "" or self.lport == None:
             lport = get_free_port()
         else:
-            lport = self.lport
+            lport = int(self.lport)
 
         # 如果不使用scapy，则绑定socket
         if not self.use_scapy:

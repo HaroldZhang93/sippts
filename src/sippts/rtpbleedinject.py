@@ -63,7 +63,7 @@ class RTPBleedInject:
         self.use_scapy = False  # 是否使用Scapy发送数据包
 
         self.run = True
-
+    
         self.c = Color()
 
     def stop(self):
@@ -124,14 +124,41 @@ class RTPBleedInject:
         print(f"{self.c.YELLOW}[+] Reading WAV file ...{self.c.WHITE}")
 
         try:
+            # 检查输入文件格式
+            # if self.file.lower().endswith('.wav'):
+            #     # 如果是PCM文件，需要先转换为对应的RTP格式
+            #     print(f"{self.c.YELLOW}[*] 检测到PCM格式音频文件，正在转换为{self.c.CYAN}{'PCMU' if payload_value == 0 else 'PCMA'}{self.c.WHITE}...")
+                
+            #     # 创建临时文件
+            #     temp_file = self.file + '.temp'
+                
+            #     # 使用RTPHijack类进行转换
+            #     from .rtphijack import RTPHijack
+            #     hijack = RTPHijack()
+            #     hijack.convert_audio_to_rtp(self.file, temp_file, payload_value)
+                
+            #     # 使用转换后的文件
+            #     self.file = temp_file
+            
+            # 读取音频文件
             file = open(self.file, "rb")
             data = file.read()
             file.close()
+            
             print(
-                f"{self.c.YELLOW}[+] Sending RTP packets to {self.c.CYAN}{self.ip}{self.c.WHITE}:{self.c.CYAN}{str(self.port)}{self.c.WHITE} to obtain info about the streams{self.c.WHITE}"
+                f"{self.c.YELLOW}[+] 正在向 {self.c.CYAN}{self.ip}{self.c.WHITE}:{self.c.CYAN}{str(self.port)}{self.c.WHITE} 发送RTP数据包{self.c.WHITE}"
             )
-        except:
-            print(f"{self.c.RED}Error opening file {self.file}")
+            
+            # 如果是临时文件，发送完成后删除
+            if self.file.endswith('.temp'):
+                try:
+                    os.remove(self.file)
+                except:
+                    pass
+                    
+        except Exception as e:
+            print(f"{self.c.RED}错误: 无法打开或处理文件 {self.file}")
+            print(f"{self.c.RED}详细信息: {str(e)}")
             print(self.c.WHITE)
             exit()
 
@@ -221,6 +248,7 @@ class RTPBleedInject:
                     cont = 0
                     hexdata = data.hex()
                     size = 160
+                    # SAMPLE_RATE = 8000  # 标准8kHz采样率
                     SAMPLE_RATE = 8000  # 标准8kHz采样率
                     SAMPLES_PER_PACKET = size // 1  # 80个采样点
 

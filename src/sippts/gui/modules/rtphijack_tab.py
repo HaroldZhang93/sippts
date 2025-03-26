@@ -187,6 +187,40 @@ class RTPHijackTab(BaseTab):
         self.live_playback_check.setToolTip("实时播放劫持的音频（需要安装PyAudio）")
         layout.addWidget(self.live_playback_check, row, 2, 1, 2)
         
+        # 麦克风采集设置
+        row += 1
+        self.mic_capture_check = QCheckBox("启用麦克风采集")
+        self.mic_capture_check.setObjectName("mic_capture_check")
+        self.mic_capture_check.setChecked(False)
+        self.mic_capture_check.setToolTip("采集麦克风音频并发送到目标（需要安装PyAudio）")
+        layout.addWidget(self.mic_capture_check, row, 0, 1, 2)
+        
+        # 麦克风采集目标设置
+        row += 1
+        layout.addWidget(QLabel("麦克风目标IP:"), row, 0)
+        self.mic_target_ip_input = QLineEdit()
+        self.mic_target_ip_input.setObjectName("mic_target_ip_input")
+        self.mic_target_ip_input.setPlaceholderText("接收麦克风音频的目标IP地址")
+        self.mic_target_ip_input.setMinimumWidth(300)
+        layout.addWidget(self.mic_target_ip_input, row, 1)
+        
+        layout.addWidget(QLabel("麦克风目标端口:"), row, 2)
+        self.mic_target_port_input = QLineEdit()
+        self.mic_target_port_input.setObjectName("mic_target_port_input")
+        self.mic_target_port_input.setPlaceholderText("接收麦克风音频的目标端口")
+        self.mic_target_port_input.setMinimumWidth(300)
+        layout.addWidget(self.mic_target_port_input, row, 3)
+        
+        # 麦克风音频格式设置
+        row += 1
+        layout.addWidget(QLabel("麦克风音频格式:"), row, 0)
+        self.mic_payload_input = QComboBox()
+        self.mic_payload_input.setObjectName("mic_payload_input")
+        self.mic_payload_input.addItems(["0 PCMU (audio)", "8 PCMA (audio)"])
+        self.mic_payload_input.setCurrentText("0 PCMU (audio)")
+        self.mic_payload_input.setMinimumWidth(300)
+        layout.addWidget(self.mic_payload_input, row, 1)
+        
         # 按钮
         row += 1
         button_layout = QHBoxLayout()
@@ -204,6 +238,12 @@ class RTPHijackTab(BaseTab):
         # 结果文本区域
         row += 1
         self.create_result_text(layout, row)
+        
+        # 连接信号
+        self.mic_capture_check.stateChanged.connect(self.on_mic_capture_changed)
+        
+        # 初始化麦克风相关控件的状态
+        self.on_mic_capture_changed()
     
     def choose_audio_file(self):
         """选择音频保存文件"""
@@ -218,6 +258,13 @@ class RTPHijackTab(BaseTab):
             if not file_name.endswith('.wav'):
                 file_name += '.wav'
             self.audio_file_input.setText(file_name)
+    
+    def on_mic_capture_changed(self):
+        """处理麦克风采集开关状态变化"""
+        enabled = self.mic_capture_check.isChecked()
+        self.mic_target_ip_input.setEnabled(enabled)
+        self.mic_target_port_input.setEnabled(enabled)
+        self.mic_payload_input.setEnabled(enabled)
     
     def start_module(self):
         """启动RTP劫持模块"""
@@ -239,6 +286,12 @@ class RTPHijackTab(BaseTab):
         timeout = self.timeout_input.text().strip()
         audio_file = self.audio_file_input.text().strip()
         verbose = 1 if self.verbose_check.isChecked() else 0
+        
+        # 获取麦克风采集参数
+        enable_mic = self.mic_capture_check.isChecked()
+        mic_target_ip = self.mic_target_ip_input.text().strip()
+        mic_target_port = self.mic_target_port_input.text().strip()
+        mic_payload_type = self.mic_payload_input.currentText()
         
         # 参数验证
         if not target_ip:
@@ -271,6 +324,13 @@ class RTPHijackTab(BaseTab):
         
         # 设置是否启用实时音频播放
         self.module_instance.enable_live_playback = self.live_playback_check.isChecked()
+        
+        # 设置麦克风采集参数
+        self.module_instance.enable_mic_capture = enable_mic
+        if enable_mic:
+            self.module_instance.mic_target_ip = mic_target_ip
+            self.module_instance.mic_target_port = int(mic_target_port)
+            self.module_instance.mic_payload_type = RTP_PAYLOAD_TYPES[mic_payload_type]
         
         # 获取并设置tag值
         from_tag = self.from_tag_input.text().strip()

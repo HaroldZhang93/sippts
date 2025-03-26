@@ -3,6 +3,7 @@ import re
 import traceback
 import os
 import warnings
+import time
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget, QMessageBox
 from PyQt5.QtCore import QThread, pyqtSignal, QObject, QEvent
 from PyQt5.QtGui import QTextCharFormat, QColor, QTextCursor, QIcon
@@ -149,7 +150,7 @@ class MainWindow(QMainWindow):
         
         # SIP消息发送模块
         self.send_tab = SendTab(self)
-        self.tabs.addTab(self.send_tab, "消息发送")
+        self.tabs.addTab(self.send_tab, "消息伪造")
         
         # SIP嗅探模块
         self.sniff_tab = SniffTab(self)
@@ -225,6 +226,7 @@ class MainWindow(QMainWindow):
             if hasattr(current_tab, 'module_instance') and current_tab.module_instance:
                 try:
                     current_tab.module_instance.stop()
+                    time.sleep(1)
                 except Exception as e:
                     print(f"停止模块时出错: {str(e)}")
                     traceback.print_exc()

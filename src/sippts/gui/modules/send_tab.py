@@ -37,7 +37,7 @@ class SendTab(BaseTab):
         self.ip_input = QLineEdit()
         self.ip_input.setObjectName("ip_input")
         self.ip_input.setPlaceholderText("目标主机IP地址")
-        self.ip_input.setText("192.168.100.144")
+        self.ip_input.setText("192.168模块执行时出错100.144")
         self.ip_input.setMinimumWidth(200)
         layout.addWidget(self.ip_input, row, 1)
         

