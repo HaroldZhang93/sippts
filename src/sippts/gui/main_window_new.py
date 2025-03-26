@@ -24,6 +24,7 @@ from sippts.gui.modules.flood_tab import FloodTab
 from sippts.gui.modules.leak_tab import LeakTab
 from sippts.gui.modules.send_tab import SendTab
 from sippts.gui.modules.sniff_tab import SniffTab
+from sippts.gui.modules.arpspoof_tab import ArpSpoofTab
 
 class LogManager(QObject):
     """日志管理器，用于重定向标准输出到UI"""
@@ -167,6 +168,10 @@ class MainWindow(QMainWindow):
         # RTP劫持模块
         self.rtphijack_tab = RTPHijackTab(self)
         self.tabs.addTab(self.rtphijack_tab, "RTP劫持")
+        
+        # ARP欺骗模块
+        self.arpspoof_tab = ArpSpoofTab(self)
+        self.tabs.addTab(self.arpspoof_tab, "ARP欺骗")
         
         # 其他模块将在这里添加
         # self.exten_tab = ExtenTab(self)

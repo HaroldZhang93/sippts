@@ -195,5 +195,11 @@
     "proto_input": "UDP",
     "payload_input": "0 PCMU (audio)",
     "mic_payload_input": "0 PCMU (audio)"
+  },
+  "ArpSpoofTab": {
+    "ip_input": "",
+    "gateway_input": "192.168.31.1",
+    "file_input": "",
+    "interface_input": "{0E982EE2-DCE6-491D-90CD-F751610E90B0} (192.168.31.230)"
   }
 }

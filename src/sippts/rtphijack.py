@@ -173,7 +173,7 @@ class RTPHijack:
         if not self.mic_target_ip or self.mic_target_ip == "":
             self.mic_target_ip = self.ip
             
-        if not self.mic_target_port or self.mic_target_port == "":
+        if not self.mic_target_port or self.mic_target_port == 0:
             self.rtp_need_port = True
             
         # 获取本地IP
@@ -637,7 +637,7 @@ class RTPHijack:
                             print(f"{self.c.BGREEN}[SIP] 收到SIP信令: {sip_message.splitlines()[0]}")
                             # 这里可以添加更多SIP信令处理逻辑
                             #如果收到200 OK，解析里面携带的SDP信息
-                            if sip_message.startswith("200 OK"):
+                            if "SIP/2.0 200 OK" in sip_message:
                                 sdp_info = extract_rtp_info(sip_message)
                                 if sdp_info:
                                     self.mic_target_ip = sdp_info.get("ip", "")
