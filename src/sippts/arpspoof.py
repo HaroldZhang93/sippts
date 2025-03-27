@@ -8,7 +8,7 @@ __copyright__ = "Copyright (C) 2015-2024, SIPPTS"
 __email__ = "pepeluxx@gmail.com"
 
 
-from scapy.all import Ether, ARP, srp, send
+from scapy.all import Ether, ARP, srp, send, IP, TCP, UDP, Raw, sniff
 import time
 import signal
 import os
@@ -16,7 +16,8 @@ import ipaddress
 import threading
 import platform
 import socket
-from IPy import IP
+import netifaces
+from IPy import IP as IPy_IP
 from .lib.functions import (
     get_machine_default_ip,
     ip2long,
@@ -33,7 +34,7 @@ from .lib.logos import Logo
 
 
 class ArpSpoof:
-    def __init__(self):
+    def __init__(self, callback=None):
         self.ip = "-"
         self.gw = ""
         self.verbose = 0
@@ -42,8 +43,22 @@ class ArpSpoof:
         self.dropped_ips = []
 
         self.run = True
+        self.callback = callback  # 用于向UI发送消息的回调函数
+
+        # 数据包监控相关
+        self.monitor_thread = None
+        self.stop_monitor = False
+        self.interface = None
+        self.monitor_enabled = False
 
         self.c = Color()
+
+    def log_message(self, message):
+        """向UI发送日志消息"""
+        if self.callback:
+            self.callback(message)
+        else:
+            print(message)
 
     def signal_handler(self, sig, frame):
         print(f"{self.c.BYELLOW}You pressed Ctrl+C!\n{self.c.WHITE}")
@@ -64,26 +79,38 @@ class ArpSpoof:
             self.verbose = 0
 
         if ops == "Linux" and current_user != "root":
-            print(
-                f"{self.c.WHITE}You must be {self.c.RED}root{self.c.WHITE} to use this module"
-            )
+            msg = f"{self.c.WHITE}You must be {self.c.RED}root{self.c.WHITE} to use this module"
+            print(msg)
             return
-
-        logo = Logo("arpspoof")
-        logo.print()
-
-        signal.signal(signal.SIGINT, self.signal_handler)
-        print(f"{self.c.BYELLOW}\nPress Ctrl+C to stop")
-        print(self.c.WHITE)
+        
 
         # my IP address
         try:
-            local_ip = get_machine_default_ip()
+            # 获取interface对应的IP地址
+            if self.interface:
+                # 如果指定了接口，获取该接口的IP地址
+                print(f"{self.c.BWHITE}[✓] 使用网络接口: {self.c.GREEN}{self.interface}")
+                try:
+                    addrs = netifaces.ifaddresses(self.interface)
+                    if netifaces.AF_INET in addrs:
+                        local_ip = addrs[netifaces.AF_INET][0]['addr']
+                        print(f"{self.c.BWHITE}[✓] 本地IP地址: {self.c.GREEN}{local_ip}")
+                    else:
+                        # 如果指定接口没有IPv4地址，回退到默认方法
+                        local_ip = get_machine_default_ip()
+                        print(f"{self.c.BWHITE}[✓] 指定接口没有IPv4地址，回退到默认方法获取本地IP地址: {self.c.GREEN}{local_ip}")
+                except Exception as e:
+                    print(f"{self.c.YELLOW}[!] 获取接口IP出错: {str(e)}")
+                    local_ip = get_machine_default_ip()
+            else:
+                # 未指定接口，使用默认方法获取IP
+                local_ip = get_machine_default_ip()
+                print(f"{self.c.BWHITE}[✓] 未指定接口，使用默认方法获取IP: {self.c.GREEN}{local_ip}")
         except:
-            print(f"{self.c.BRED}Error getting local IP")
-            print(
-                f"{self.c.BWHITE}Try with {self.c.BYELLOW}-local-ip{self.c.BWHITE} param"
-            )
+            msg = f"{self.c.BRED}Error getting local IP"
+            print(msg)
+            msg = f"{self.c.BWHITE}Try with {self.c.BYELLOW}-local-ip{self.c.BWHITE} param"
+            print(msg)
             print(self.c.WHITE)
             exit()
 
@@ -94,7 +121,6 @@ class ArpSpoof:
                 self.gw = get_default_gateway_mac().strip()
             elif ops == "Windows":
                 self.gw = get_default_gateway_windows()
-
         print(f"{self.c.BWHITE}[✓] Operating System: {self.c.GREEN}{ops}")
         print(f"{self.c.BWHITE}[✓] Current User: {self.c.GREEN}{current_user}")
         print(f"{self.c.BWHITE}[✓] Local IP address: {self.c.GREEN}{local_ip}")
@@ -123,10 +149,10 @@ class ArpSpoof:
                             if self.run == True:
                                 try:
                                     ip = socket.gethostbyname(line)
-                                    self.ip = IP(ip, make_net=True)
+                                    self.ip = IPy_IP(ip, make_net=True)
                                 except:
                                     try:
-                                        self.ip = IP(line, make_net=True)
+                                        self.ip = IPy_IP(line, make_net=True)
 
                                     except:
                                         if line.find("-") > 0:
@@ -174,9 +200,9 @@ class ArpSpoof:
                 try:
                     if i.find("/") < 1:
                         i = socket.gethostbyname(i)
-                        i = IP(i, make_net=True)
+                        i = IPy_IP(i, make_net=True)
                     else:
-                        i = IP(i, make_net=True)
+                        i = IPy_IP(i, make_net=True)
                 except:
                     if i.find("-") > 0:
                         val = i.split("-")
@@ -222,6 +248,10 @@ class ArpSpoof:
 
         self.run = True
 
+        # 如果开启了监控且提供了接口，启动监控
+        if self.monitor_enabled and self.interface:
+            self.start_monitor()
+
         for x in range(0, n, 2):
             ip = self.ips[x]
             mac = self.ips[x + 1]
@@ -257,6 +287,9 @@ class ArpSpoof:
 
         self.restore(self.gw, str(ip), self.verbose)
 
+        # 停止监控
+        self.stop_monitoring()
+
         # disable ip forwarding
         disable_ip_route()
 
@@ -287,13 +320,10 @@ class ArpSpoof:
         if verbose == 2:
             # get the MAC address of the default interface we are using
             self_mac = ARP().hwsrc
-            print(
-                self.c.YELLOW
-                + "[+] Sent restoring to {} : {} is-at {}".format(
-                    target_ip, host_ip, self_mac
-                )
-                + self.c.WHITE
-            )
+            msg = self.c.YELLOW + "[+] Sent restoring to {} : {} is-at {}".format(
+                target_ip, host_ip, self_mac
+            ) + self.c.WHITE
+            print(msg)
 
     def restore(self, target_ip, host_ip, verbose=1):
         """
@@ -314,13 +344,10 @@ class ArpSpoof:
         # we send each reply seven times for a good measure (count=7)
         send(arp_response, verbose=0, count=7)
         if verbose > 0:
-            print(
-                self.c.GREEN
-                + "[-] Sent poisoning to {} : {} is-at {}".format(
-                    target_ip, host_ip, host_mac
-                )
-                + self.c.WHITE
-            )
+            msg = self.c.GREEN + "[-] Sent poisoning to {} : {} is-at {}".format(
+                target_ip, host_ip, host_mac
+            ) + self.c.WHITE
+            print(msg)
 
     def start_spoof(self, target_ip, gw_ip, target_mac, verbose):
         if verbose > 0:
@@ -330,20 +357,17 @@ class ArpSpoof:
             gw_mac = self.get_mac(gw_ip)
 
             if target_mac == None:
-                print(
-                    f"{self.c.RED}[!] Error getting the target MAC address for IP: {target_ip}{self.c.WHITE}"
-                )
+                msg = f"{self.c.RED}[!] Error getting the target MAC address for IP: {target_ip}{self.c.WHITE}"
+                print(msg)
                 self.dropped_ips.append(target_ip)
                 return
             if gw_mac == None:
-                print(
-                    f"{self.c.RED}[!] Error getting the target MAC address for IP: {gw_ip}{self.c.WHITE}"
-                )
+                msg = f"{self.c.RED}[!] Error getting the target MAC address for IP: {gw_ip}{self.c.WHITE}"
+                print(msg)
                 return
 
-            print(
-                f"{self.c.YELLOW}[+] Start ARP spoof between {target_ip} ({target_mac}) and {gw_ip} ({gw_mac}){self.c.WHITE}"
-            )
+            msg = f"{self.c.YELLOW}[+] Start ARP spoof between {target_ip} ({target_mac}) and {gw_ip} ({gw_mac}){self.c.WHITE}"
+            print(msg)
 
         while self.run == True:
             # telling the `target` that we are the `gw`
@@ -352,3 +376,111 @@ class ArpSpoof:
             self.spoof(gw_ip, target_ip, "", verbose)
             # sleep for one second
             time.sleep(1)
+
+    def start_monitor(self):
+        """启动数据包监控"""
+        self.stop_monitor = False
+        
+        if self.monitor_thread is None or not self.monitor_thread.is_alive():
+            print("开始监控网络流量...")
+            self.monitor_thread = threading.Thread(target=self._monitor_packets, daemon=True)
+            self.monitor_thread.start()
+    
+    def stop_monitoring(self):
+        """停止数据包监控"""
+        self.stop_monitor = True
+        if self.monitor_thread and self.monitor_thread.is_alive():
+            self.monitor_thread.join(2)  # 等待最多2秒
+    
+    def _monitor_packets(self):
+        """监控数据包"""
+        # 使用scapy的sniff函数监控数据包
+        try:
+            sniff(prn=self._process_packet, 
+                  store=0, 
+                  stop_filter=lambda p: self.stop_monitor,
+                  iface=self.interface)
+        except Exception as e:
+            print(f"监控网络流量时出错: {str(e)}")
+    
+    def _process_packet(self, packet):
+        """处理捕获的数据包"""
+        # 只处理IP数据包
+        if IP in packet:
+            summary = []
+            src_ip = packet[IP].src
+            dst_ip = packet[IP].dst
+            proto = "???"
+            info = ""
+            
+            # 检查是否为TCP/UDP数据包
+            if TCP in packet:
+                proto = "TCP"
+                src_port = packet[TCP].sport
+                dst_port = packet[TCP].dport
+                
+                # 检查常见协议
+                if dst_port == 80 or src_port == 80:
+                    proto = "HTTP"
+                elif dst_port == 443 or src_port == 443:
+                    proto = "HTTPS"
+                elif dst_port == 21 or src_port == 21:
+                    proto = "FTP"
+                elif dst_port == 22 or src_port == 22:
+                    proto = "SSH"
+                elif dst_port == 25 or src_port == 25:
+                    proto = "SMTP"
+                
+                # TCP标志
+                flags = ""
+                if packet[TCP].flags.S:
+                    flags += "SYN "
+                if packet[TCP].flags.A:
+                    flags += "ACK "
+                if packet[TCP].flags.F:
+                    flags += "FIN "
+                if packet[TCP].flags.R:
+                    flags += "RST "
+                if packet[TCP].flags.P:
+                    flags += "PSH "
+                
+                info = f"{src_ip}:{src_port} -> {dst_ip}:{dst_port} [{flags.strip()}]"
+                
+                # 检查HTTP内容
+                if proto == "HTTP" and Raw in packet:
+                    try:
+                        http_data = packet[Raw].load.decode('utf-8', errors='ignore')
+                        if "GET " in http_data or "POST " in http_data:
+                            first_line = http_data.split('\r\n')[0]
+                            info += f" {first_line}"
+                    except:
+                        pass
+                
+            elif UDP in packet:
+                proto = "UDP"
+                src_port = packet[UDP].sport
+                dst_port = packet[UDP].dport
+                
+                # 检查常见协议
+                if dst_port == 53 or src_port == 53:
+                    proto = "DNS"
+                elif dst_port == 161 or src_port == 161:
+                    proto = "SNMP"
+                elif (dst_port == 5060 or src_port == 5060) and Raw in packet:
+                    proto = "SIP"
+                
+                info = f"{src_ip}:{src_port} -> {dst_ip}:{dst_port}"
+                
+                # 检查SIP内容
+                if proto == "SIP" and Raw in packet:
+                    try:
+                        sip_data = packet[Raw].load.decode('utf-8', errors='ignore')
+                        if "INVITE " in sip_data or "REGISTER " in sip_data or "OPTIONS " in sip_data:
+                            first_line = sip_data.split('\r\n')[0]
+                            info += f" {first_line}"
+                    except:
+                        pass
+            
+            # 将捕获的信息发送给回调
+            if info:
+                print(f"[{proto}] {info}")

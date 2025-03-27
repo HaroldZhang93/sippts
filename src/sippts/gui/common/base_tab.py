@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QTextEdit, QLineEdit, QComboBox
+from PyQt5.QtWidgets import QWidget, QTextEdit, QLineEdit, QComboBox, QCheckBox
 from PyQt5.QtCore import pyqtSignal
 from sippts.gui.common.config_manager import ConfigManager
 
@@ -34,6 +34,7 @@ class BaseTab(QWidget):
         self.result_text.setStyleSheet("""
             QTextEdit {
                 background-color: black;
+                color: white;
                 font-size: 20px;
             }
         """)
@@ -94,6 +95,11 @@ class BaseTab(QWidget):
             if hasattr(widget, 'objectName') and widget.objectName():
                 config_data[widget.objectName()] = widget.currentText()
         
+        # 遍历标签页中的所有QCheckBox控件
+        for widget in self.findChildren(QCheckBox):
+            if hasattr(widget, 'objectName') and widget.objectName():
+                config_data[widget.objectName()] = widget.isChecked()
+        
         # 保存配置
         tab_name = self.__class__.__name__
         self.config_manager.save_tab_config(tab_name, config_data, save_immediately)
@@ -116,4 +122,9 @@ class BaseTab(QWidget):
             if hasattr(widget, 'objectName') and widget.objectName() and widget.objectName() in config_data:
                 index = widget.findText(config_data[widget.objectName()])
                 if index >= 0:
-                    widget.setCurrentIndex(index) 
+                    widget.setCurrentIndex(index)
+        
+        # 加载QCheckBox控件的值
+        for widget in self.findChildren(QCheckBox):
+            if hasattr(widget, 'objectName') and widget.objectName() and widget.objectName() in config_data:
+                widget.setChecked(config_data[widget.objectName()])

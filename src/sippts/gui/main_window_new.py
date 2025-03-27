@@ -257,7 +257,7 @@ class MainWindow(QMainWindow):
             # 设置日志输出
             if hasattr(current_tab, 'result_text') and current_tab.result_text:
                 # 清空结果文本
-                current_tab.result_text.clear()
+                # current_tab.result_text.clear()
                 
                 # 设置日志输出
                 self.setup_logging(current_tab.result_text)

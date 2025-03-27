@@ -150,12 +150,18 @@
     "header_input": "",
     "output_input": "",
     "proto_input": "UDP",
-    "method_input": "INVITE"
+    "method_input": "INVITE",
+    "sdp_check": false,
+    "sdes_check": false,
+    "nocontact_check": false,
+    "verbose_check": false
   },
   "SniffTab": {
     "output_file_input": "snifftest.pcap",
     "interface_input": "",
-    "proto_input": "UDP"
+    "proto_input": "UDP",
+    "verbose_check": false,
+    "auth_check": false
   },
   "RTPBleedTab": {
     "ip_input": "192.168.4.200",
@@ -176,30 +182,35 @@
     "force_input": "是"
   },
   "RTPHijackTab": {
-    "ip_input": "192.168.100.144",
+    "ip_input": "192.168.100.10",
     "port_input": "5060",
     "localip_input": "192.168.100.91",
     "from_user_input": "88888002",
     "to_user_input": "+861088889001",
-    "domain_input": "192.168.100.144",
+    "domain_input": "192.168.100.10",
     "spoof_ip_input": "20.50.1.10",
-    "from_tag_input": "ztesip16ru_fQQ*2-1-20481*idcb.2",
-    "to_tag_input": "et5ef2da",
-    "call_id_input": "5efawb74veydadwta27ef542g2w284ev@192.168.100.144",
+    "from_tag_input": "ztesip9bx2E8wt*3-1-20481*deac.3",
+    "to_tag_input": "873623852",
+    "call_id_input": "KaikJRifcEdBQQrxhBKUpIZpaty5Pq1xRf1bff@zteims",
     "contact_domain_input": "20.50.1.10",
     "rtp_port_input": "10000",
     "timeout_input": "10",
     "audio_file_input": "hijacked_audio.wav",
     "mic_target_ip_input": "192.168.100.10",
-    "mic_target_port_input": "5004",
+    "mic_target_port_input": "0",
     "proto_input": "UDP",
     "payload_input": "0 PCMU (audio)",
-    "mic_payload_input": "0 PCMU (audio)"
+    "mic_payload_input": "0 PCMU (audio)",
+    "verbose_check": false,
+    "live_playback_check": true,
+    "mic_capture_check": false
   },
   "ArpSpoofTab": {
-    "ip_input": "",
-    "gateway_input": "192.168.31.1",
+    "ip_input": "20.50.1.10",
+    "gateway_input": "192.168.100.254",
     "file_input": "",
-    "interface_input": "{0E982EE2-DCE6-491D-90CD-F751610E90B0} (192.168.31.230)"
+    "interface_input": "{8890599A-308E-4612-8CAE-23E2FD6EA43C} (192.168.100.91)",
+    "verbose_check": false,
+    "monitor_check": false
   }
 }

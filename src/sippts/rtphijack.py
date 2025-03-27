@@ -423,9 +423,10 @@ class RTPHijack:
                 sock.close()
             
             # 停止所有线程
-            self.stop_sniffing = True
-            self.rtp_running = False
-            time.sleep(1)
+            self.stop()
+            # self.stop_sniffing = True
+            # self.rtp_running = False
+            # time.sleep(1)
         
         print(f"{self.c.BWHITE}[*] RTP劫持已完成")
 
@@ -554,7 +555,7 @@ class RTPHijack:
             print(f"{self.c.BWHITE}[+] 使用网络接口: {active_iface}")
             
             # BPF过滤器，捕获发往目标端口的UDP流量
-            filter_str = f"udp and dst port {self.rtp_local_port}"
+            filter_str = f"udp and src host {self.ip}"
             
             # 启动嗅探
             print(f"{self.c.BWHITE}[+] 开始捕获端口 {self.rtp_local_port} 的RTP流量...")
@@ -634,16 +635,17 @@ class RTPHijack:
                         # 这是SIP信令包，需要单独处理
                         try:
                             sip_message = raw_payload.decode('utf-8', errors='ignore')
-                            print(f"{self.c.BGREEN}[SIP] 收到SIP信令: {sip_message.splitlines()[0]}")
+                            print(f"{self.c.YELLOW}[SIP] 收到SIP信令: {sip_message.splitlines()[0]}")
                             # 这里可以添加更多SIP信令处理逻辑
                             #如果收到200 OK，解析里面携带的SDP信息
-                            if "SIP/2.0 200 OK" in sip_message:
+                            if "SIP/2.0 200 OK" in sip_message.splitlines()[0]:
+                                print(f"{self.c.YELLOW}[SIP] 收到200 OK, 解析SDP")
                                 sdp_info = extract_rtp_info(sip_message)
                                 if sdp_info:
                                     self.mic_target_ip = sdp_info.get("ip", "")
                                     self.mic_target_port = int(sdp_info.get("port", 0))
                                     self.rtp_need_port = False
-                                    print(f"{self.c.BWHITE}[✓] 从SDP中提取RTP信息: {self.c.GREEN}{self.mic_target_ip}:{self.mic_target_port}")
+                                    print(f"{self.c.BGREEN}[✓] 从SDP中提取RTP信息:{self.mic_target_ip}:{self.mic_target_port}")
                         except Exception as e:
                             print(f"{self.c.RED}[!] 处理SIP信令错误: {str(e)}{self.c.WHITE}")
                             return

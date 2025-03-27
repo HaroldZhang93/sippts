@@ -16,144 +16,19 @@ from sippts.arpspoof import ArpSpoof
 from sippts.lib.functions import get_machine_default_ip, get_default_gateway_windows, get_default_gateway_linux, system_call
 
 
-class ArpSpoofWithMonitor(ArpSpoof):
-    """扩展ArpSpoof类，添加数据包监控功能"""
-    
-    def __init__(self, callback=None):
-        super().__init__()
-        self.callback = callback
-        self.monitor_thread = None
-        self.stop_monitor = False
-        self.interface = None
-    
-    def start_monitor(self, interface=None):
-        """启动数据包监控"""
-        self.interface = interface
-        self.stop_monitor = False
-        
-        if self.monitor_thread is None or not self.monitor_thread.is_alive():
-            self.monitor_thread = threading.Thread(target=self._monitor_packets, daemon=True)
-            self.monitor_thread.start()
-    
-    def stop_monitoring(self):
-        """停止数据包监控"""
-        self.stop_monitor = True
-        if self.monitor_thread and self.monitor_thread.is_alive():
-            self.monitor_thread.join(2)  # 等待最多2秒
-    
-    def _monitor_packets(self):
-        """监控数据包"""
-        if self.callback:
-            self.callback("开始监控网络流量...")
-        
-        # 使用scapy的sniff函数监控数据包
-        try:
-            sniff(prn=self._process_packet, 
-                  store=0, 
-                  stop_filter=lambda p: self.stop_monitor,
-                  iface=self.interface)
-        except Exception as e:
-            if self.callback:
-                self.callback(f"监控网络流量时出错: {str(e)}")
-    
-    def _process_packet(self, packet):
-        """处理捕获的数据包"""
-        # 只处理IP数据包
-        if IP in packet:
-            summary = []
-            src_ip = packet[IP].src
-            dst_ip = packet[IP].dst
-            proto = "???"
-            info = ""
-            
-            # 检查是否为TCP/UDP数据包
-            if TCP in packet:
-                proto = "TCP"
-                src_port = packet[TCP].sport
-                dst_port = packet[TCP].dport
-                
-                # 检查常见协议
-                if dst_port == 80 or src_port == 80:
-                    proto = "HTTP"
-                elif dst_port == 443 or src_port == 443:
-                    proto = "HTTPS"
-                elif dst_port == 21 or src_port == 21:
-                    proto = "FTP"
-                elif dst_port == 22 or src_port == 22:
-                    proto = "SSH"
-                elif dst_port == 25 or src_port == 25:
-                    proto = "SMTP"
-                
-                # TCP标志
-                flags = ""
-                if packet[TCP].flags.S:
-                    flags += "SYN "
-                if packet[TCP].flags.A:
-                    flags += "ACK "
-                if packet[TCP].flags.F:
-                    flags += "FIN "
-                if packet[TCP].flags.R:
-                    flags += "RST "
-                if packet[TCP].flags.P:
-                    flags += "PSH "
-                
-                info = f"{src_ip}:{src_port} -> {dst_ip}:{dst_port} [{flags.strip()}]"
-                
-                # 检查HTTP内容
-                if proto == "HTTP" and Raw in packet:
-                    try:
-                        http_data = packet[Raw].load.decode('utf-8', errors='ignore')
-                        if "GET " in http_data or "POST " in http_data:
-                            first_line = http_data.split('\r\n')[0]
-                            info += f" {first_line}"
-                    except:
-                        pass
-                
-            elif UDP in packet:
-                proto = "UDP"
-                src_port = packet[UDP].sport
-                dst_port = packet[UDP].dport
-                
-                # 检查常见协议
-                if dst_port == 53 or src_port == 53:
-                    proto = "DNS"
-                elif dst_port == 161 or src_port == 161:
-                    proto = "SNMP"
-                elif (dst_port == 5060 or src_port == 5060) and Raw in packet:
-                    proto = "SIP"
-                
-                info = f"{src_ip}:{src_port} -> {dst_ip}:{dst_port}"
-                
-                # 检查SIP内容
-                if proto == "SIP" and Raw in packet:
-                    try:
-                        sip_data = packet[Raw].load.decode('utf-8', errors='ignore')
-                        if "INVITE " in sip_data or "REGISTER " in sip_data or "OPTIONS " in sip_data:
-                            first_line = sip_data.split('\r\n')[0]
-                            info += f" {first_line}"
-                    except:
-                        pass
-            
-            # 将捕获的信息发送给回调
-            if self.callback and info:
-                self.callback(f"[{proto}] {info}")
-
-
 class ArpSpoofTab(BaseTab):
     """ARP欺骗模块标签页"""
     
     def __init__(self, main_window):
         super().__init__(main_window)
-        
+        # 存储网络接口映射
+        self.interface_map = {}
         # 初始化UI
         self.setup_ui()
         
         # 从配置加载输入值
         self.load_input_values()
         
-        # 存储网络接口映射
-        self.interface_map = {}
-    
     def setup_ui(self):
         """设置UI界面"""
         # 创建主布局
@@ -273,6 +148,7 @@ class ArpSpoofTab(BaseTab):
             for iface in interfaces:
                 # 获取接口的IPv4地址
                 addresses = netifaces.ifaddresses(iface)
+                
                 if netifaces.AF_INET in addresses:
                     for addr in addresses[netifaces.AF_INET]:
                         ip_addr = addr.get('addr')
@@ -280,7 +156,12 @@ class ArpSpoofTab(BaseTab):
                             # 显示格式: 接口名称 (IP地址)
                             display_name = f"{iface} ({ip_addr})"
                             self.interface_input.addItem(display_name)
+                            # 确保interface_map已初始化为字典
+                            if not hasattr(self, 'interface_map') or self.interface_map is None:
+                                self.interface_map = {}
+                            # 添加映射并打印确认
                             self.interface_map[display_name] = iface
+            
             
             # 如果没有找到接口，添加提示
             if self.interface_input.count() == 0:
@@ -348,7 +229,10 @@ class ArpSpoofTab(BaseTab):
         interface_text = self.interface_input.currentText()
         if interface_text in self.interface_map:
             interface = self.interface_map[interface_text]
-        
+            print(f"接口: {interface}")
+        else:
+            print(f"接口不存在: {interface_text}")
+            
         # 获取详细日志选项
         verbose = 1 if self.verbose_check.isChecked() else 0
         
@@ -360,6 +244,7 @@ class ArpSpoofTab(BaseTab):
             self.result_text.append(f"IP列表文件: {ip_file}")
         self.result_text.append(f"网关IP: {gateway}")
         self.result_text.append(f"网络接口: {interface}")
+        print(f"网络接口: {interface}")
         self.result_text.append(f"详细日志: {'是' if verbose else '否'}")
         self.result_text.append(f"监控流量: {'是' if self.monitor_check.isChecked() else '否'}")
         self.result_text.append("==================")
@@ -369,14 +254,15 @@ class ArpSpoofTab(BaseTab):
             self.append_log(message)
         
         # 创建并配置ArpSpoof实例
-        arpspoof = ArpSpoofWithMonitor(callback=log_callback)
+        arpspoof = ArpSpoof(callback=log_callback)
         arpspoof.ip = ip_target
         arpspoof.gw = gateway
         arpspoof.verbose = verbose
         arpspoof.file = ip_file
         
-        # 启用监控选项
-        self.enable_monitoring = self.monitor_check.isChecked()
+        # 设置监控选项
+        arpspoof.monitor_enabled = self.monitor_check.isChecked()
+        arpspoof.interface = interface
         
         # 存储实例
         self.module_instance = arpspoof
@@ -384,12 +270,12 @@ class ArpSpoofTab(BaseTab):
         # 通知主窗口模块启动
         self.on_module_started()
         
-        # 如果启用了监控，则启动监控线程
-        if self.enable_monitoring and interface:
-            arpspoof.start_monitor(interface)
-        
         # 启动模块线程
-        self.main_window.start_module_thread(self, arpspoof.start)
+        # self.main_window.start_module_thread(self, arpspoof.start)
+        self.main_window.run_module(
+            self.module_instance, 
+            self.on_module_finished
+        )
     
     def load_input_values(self):
         """从配置加载输入值"""
@@ -397,14 +283,18 @@ class ArpSpoofTab(BaseTab):
         
         # 恢复保存的值
         for name, value in config.items():
-            if hasattr(self, name) and value:
+            if hasattr(self, name) and value is not None:
                 widget = getattr(self, name)
                 if isinstance(widget, QLineEdit):
                     widget.setText(value)
                 elif isinstance(widget, QComboBox) and widget.findText(value) >= 0:
                     widget.setCurrentText(value)
                 elif isinstance(widget, QCheckBox):
-                    widget.setChecked(value.lower() == "true")
+                    if isinstance(value, bool):
+                        widget.setChecked(value)
+                    else:
+                        # 处理字符串情况
+                        widget.setChecked(str(value).lower() == "true")
     
     def is_admin(self):
         """检查是否有管理员权限"""
@@ -422,10 +312,6 @@ class ArpSpoofTab(BaseTab):
         if hasattr(self, 'module_instance') and self.module_instance:
             # 停止ARP欺骗
             self.module_instance.stop()
-            
-            # 如果是监控实例，也停止监控
-            if hasattr(self.module_instance, 'stop_monitoring'):
-                self.module_instance.stop_monitoring()
             
             # 确保按钮状态正确
             if self.start_btn:
