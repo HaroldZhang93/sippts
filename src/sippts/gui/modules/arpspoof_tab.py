@@ -229,7 +229,6 @@ class ArpSpoofTab(BaseTab):
         interface_text = self.interface_input.currentText()
         if interface_text in self.interface_map:
             interface = self.interface_map[interface_text]
-            print(f"接口: {interface}")
         else:
             print(f"接口不存在: {interface_text}")
             
@@ -244,7 +243,6 @@ class ArpSpoofTab(BaseTab):
             self.result_text.append(f"IP列表文件: {ip_file}")
         self.result_text.append(f"网关IP: {gateway}")
         self.result_text.append(f"网络接口: {interface}")
-        print(f"网络接口: {interface}")
         self.result_text.append(f"详细日志: {'是' if verbose else '否'}")
         self.result_text.append(f"监控流量: {'是' if self.monitor_check.isChecked() else '否'}")
         self.result_text.append("==================")

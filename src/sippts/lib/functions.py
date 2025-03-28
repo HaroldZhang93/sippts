@@ -174,14 +174,71 @@ def _disable_linux_iproute():
         print(0, file=f)
 
 
-# def _enable_windows_iproute():
-#     """
-#     Enables IP route (IP Forwarding) in Windows
-#     """
-#     from services import WService
-#     # enable Remote Access service
-#     service = WService("RemoteAccess")
-#     service.start()
+def _enable_windows_iproute():
+    """
+    在Windows系统中启用IP转发
+    通过修改注册表实现，不重启TCP/IP服务
+    """
+    try:
+        import winreg
+        
+        # 打开注册表键
+        key = winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE,
+            r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
+            0,
+            winreg.KEY_ALL_ACCESS
+        )
+        
+        # 设置IP转发值为1
+        winreg.SetValueEx(key, "IPEnableRouter", 0, winreg.REG_DWORD, 1)
+        
+        # 关闭注册表键
+        winreg.CloseKey(key)
+        
+        # 使用netsh命令启用IP转发（这种方式更安全）
+        os.system("netsh interface ipv4 set global forwarding=enabled > nul 2>&1")
+        
+        print(f"{BWHITE}[✓] Windows IP转发已启用{WHITE}")
+        
+    except Exception as e:
+        print(f"{RED}启用Windows IP转发时出错: {str(e)}{WHITE}")
+        print(f"{YELLOW}请确保以管理员权限运行程序{WHITE}")
+
+
+def _disable_windows_iproute():
+    """
+    在Windows系统中禁用IP转发
+    通过修改注册表实现，不重启TCP/IP服务
+    """
+    try:
+        import winreg
+        
+        # 打开注册表键
+        key = winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE,
+            r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
+            0,
+            winreg.KEY_ALL_ACCESS
+        )
+        
+        # 设置IP转发值为0
+        winreg.SetValueEx(key, "IPEnableRouter", 0, winreg.REG_DWORD, 0)
+        
+        # 关闭注册表键
+        winreg.CloseKey(key)
+        
+        # 使用netsh命令禁用IP转发
+        import subprocess
+        subprocess.call(["netsh", "interface", "ipv4", "set", "global", "forwarding=disabled"], 
+                       stdout=subprocess.DEVNULL, 
+                       stderr=subprocess.DEVNULL)
+        
+        print(f"{YELLOW}[✓] Windows IP转发已禁用{WHITE}")
+        
+    except Exception as e:
+        print(f"{RED}禁用Windows IP转发时出错: {str(e)}{WHITE}")
+        print(f"{YELLOW}请确保以管理员权限运行程序{WHITE}")
 
 
 def disable_ip_route(verbose=1):
@@ -194,8 +251,10 @@ def disable_ip_route(verbose=1):
         ops = platform.system()
         if ops == "Darwin":
             _disable_mac_iproute()
-        if ops == "Linux":
+        elif ops == "Linux":
             _disable_linux_iproute()
+        elif ops == "Windows":
+            _disable_windows_iproute()
     if verbose > 0:
         print(f"{YELLOW}[!] IP Routing disabled.\n{WHITE}")
 
@@ -210,8 +269,10 @@ def enable_ip_route(verbose=1):
         ops = platform.system()
         if ops == "Darwin":
             _enable_mac_iproute()
-        if ops == "Linux":
+        elif ops == "Linux":
             _enable_linux_iproute()
+        elif ops == "Windows":
+            _enable_windows_iproute()
     if verbose > 0:
         print(f"{BWHITE}[!] IP Routing enabled\n{WHITE}")
 
