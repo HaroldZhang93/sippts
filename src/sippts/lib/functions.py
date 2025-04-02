@@ -177,11 +177,13 @@ def _disable_linux_iproute():
 def _enable_windows_iproute():
     """
     在Windows系统中启用IP转发
-    通过修改注册表实现，不重启TCP/IP服务
+    通过修改注册表和防火墙规则实现
     """
     try:
         import winreg
-        
+        import subprocess
+        import time
+            
         # 打开注册表键
         key = winreg.OpenKey(
             winreg.HKEY_LOCAL_MACHINE,
@@ -196,14 +198,82 @@ def _enable_windows_iproute():
         # 关闭注册表键
         winreg.CloseKey(key)
         
-        # 使用netsh命令启用IP转发（这种方式更安全）
-        os.system("netsh interface ipv4 set global forwarding=enabled > nul 2>&1")
+        # 删除可能存在的旧规则
+        subprocess.run([
+            "netsh", "advfirewall", "firewall", "delete", "rule",
+            "name=IPForwarding"
+        ], capture_output=True)
         
-        print(f"{BWHITE}[✓] Windows IP转发已启用{WHITE}")
+        # 添加新的防火墙规则
+        subprocess.run([
+            "netsh", "advfirewall", "firewall", "add", "rule",
+            "name=IPForwarding",
+            "dir=in",
+            "action=allow",
+            "protocol=ANY",
+            "enable=yes",
+            "profile=any"
+        ], capture_output=True)
+        
+        subprocess.run([
+            "netsh", "advfirewall", "firewall", "add", "rule",
+            "name=IPForwarding",
+            "dir=out",
+            "action=allow",
+            "protocol=ANY",
+            "enable=yes",
+            "profile=any"
+        ], capture_output=True)
+        
+        # 启用IP转发
+        result = subprocess.run([
+            "netsh", "interface", "ipv4", "set", "global",
+            "forwarding=enabled"
+        ], capture_output=True, text=True)
+        
+        # 重启TCP/IP服务
+        subprocess.run([
+            "net", "stop", "Tcpip", "/y"
+        ], capture_output=True)
+        
+        time.sleep(2)  # 等待服务停止
+        
+        subprocess.run([
+            "net", "start", "Tcpip"
+        ], capture_output=True)
+        
+        time.sleep(2)  # 等待服务启动
+        
+        # 验证IP转发是否启用
+        result = subprocess.run([
+            "netsh", "interface", "ipv4", "show", "global"
+        ], capture_output=True, text=True)
+        
+        # 检查注册表值来验证IP转发状态
+        try:
+            key = winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE,
+                r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
+                0,
+                winreg.KEY_READ
+            )
+            value, _ = winreg.QueryValueEx(key, "IPEnableRouter")
+            winreg.CloseKey(key)
+            
+            if value == 1:
+                print(f"{BWHITE}[✓] Windows IP转发已成功启用{WHITE}")
+            else:
+                print(f"{RED}[!] IP转发在注册表中未启用{WHITE}")
+                return False
+                
+        except Exception as e:
+            print(f"{RED}[!] 验证IP转发状态时出错: {str(e)}{WHITE}")
+            return False
         
     except Exception as e:
         print(f"{RED}启用Windows IP转发时出错: {str(e)}{WHITE}")
         print(f"{YELLOW}请确保以管理员权限运行程序{WHITE}")
+        return False
 
 
 def _disable_windows_iproute():

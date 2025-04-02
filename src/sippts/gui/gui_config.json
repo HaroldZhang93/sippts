@@ -206,10 +206,10 @@
     "mic_capture_check": false
   },
   "ArpSpoofTab": {
-    "ip_input": "192.168.50.208",
-    "gateway_input": "192.168.50.1",
+    "ip_input": "192.168.100.10",
+    "gateway_input": "192.168.100.254",
     "file_input": "",
-    "interface_input": "{43902A11-FCA8-4459-82BB-C6E41FBFE391} (10.192.80.226)",
+    "interface_input": "{8890599A-308E-4612-8CAE-23E2FD6EA43C} (192.168.100.91)",
     "verbose_check": true,
     "monitor_check": false
   }
