@@ -228,7 +228,7 @@ def _enable_windows_iproute():
         # 启用IP转发
         result = subprocess.run([
             "netsh", "interface", "ipv4", "set", "global",
-            "forwarding=enabled"
+            "multicastforwarding=enabled"
         ], capture_output=True, text=True)
         
         # 重启TCP/IP服务
@@ -300,7 +300,7 @@ def _disable_windows_iproute():
         
         # 使用netsh命令禁用IP转发
         import subprocess
-        subprocess.call(["netsh", "interface", "ipv4", "set", "global", "forwarding=disabled"], 
+        subprocess.call(["netsh", "interface", "ipv4", "set", "global", "multicastforwarding=disabled"], 
                        stdout=subprocess.DEVNULL, 
                        stderr=subprocess.DEVNULL)
         

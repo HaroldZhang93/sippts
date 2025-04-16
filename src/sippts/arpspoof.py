@@ -736,12 +736,35 @@ class ArpSpoof:
             print(msg)
 
         while self.run == True:
+            
+            # 1. 保持本机ARP表正确
+            self._maintain_arp_table(target_ip, target_mac)
+            self._maintain_arp_table(gw_ip, gw_mac)
+            
             # 告诉目标主机我们是网关
             self.spoof(target_ip, gw_ip, target_mac, verbose)
             # 告诉网关我们是目标主机
             self.spoof(gw_ip, target_ip, gw_mac, verbose)
+            
+            self._maintain_arp_table(target_ip, target_mac)
+            self._maintain_arp_table(gw_ip, gw_mac)
             # 休眠1秒
             time.sleep(1)
+            
+            
+    def _maintain_arp_table(self, ip, mac):
+        """维护本机ARP表"""
+        try:
+            import subprocess
+            # 使用系统命令更新ARP表
+            if platform.system() == "Windows":
+                win_mac = mac.replace(":", "-")
+                subprocess.run(f"arp -s {ip} {win_mac}", shell=True)
+            else:
+                subprocess.run(f"arp -s {ip} {mac}", shell=True)
+        except Exception as e:
+            print(f"更新ARP表失败: {str(e)}")
+        
 
     def start_monitor(self):
         """启动数据包监控"""
