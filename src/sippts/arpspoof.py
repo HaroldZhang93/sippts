@@ -32,6 +32,8 @@ from .lib.functions import (
 from .lib.color import Color
 from .lib.logos import Logo
 import struct
+import subprocess
+import re
 
 
 class ArpSpoof:
@@ -48,7 +50,7 @@ class ArpSpoof:
         self.callback = callback  # 用于向UI发送消息的回调函数
 
         # 数据包监控相关
-        self.monitor_thread = None
+        # self.monitor_thread = None
         self.stop_monitor = False
         self.interface = None
         self.monitor_enabled = False
@@ -84,7 +86,7 @@ class ArpSpoof:
             msg = f"{self.c.WHITE}You must be {self.c.RED}root{self.c.WHITE} to use this module"
             print(msg)
             return
-        
+
         # 获取本机IP地址
         try:
             if self.interface:
@@ -131,7 +133,7 @@ class ArpSpoof:
                 self.gw = get_default_gateway_mac().strip()
             elif ops == "Windows":
                 self.gw = get_default_gateway_windows()
-        
+
         print(f"{self.c.BWHITE}[✓] 网关: {self.c.GREEN}{self.gw}")
         # 获取网关MAC地址
         gateway_mac = self.get_mac(self.gw)
@@ -154,7 +156,7 @@ class ArpSpoof:
 
         # 启用IP转发
         enable_ip_route()
-        
+
         # 解析目标IP列表
         target_ips = []
         
@@ -173,7 +175,7 @@ class ArpSpoof:
                                 start_ip, end_ip = line.split("-")
                                 ipini = int(ip2long(start_ip))
                                 ipend = int(ip2long(end_ip))
-                                
+
                                 for i in range(ipini, ipend + 1):
                                     ip = long2ip(i)
                                     if ip != local_ip and ip != self.gw:
@@ -191,7 +193,7 @@ class ArpSpoof:
                             if self.verbose > 0:
                                 print(f"{self.c.YELLOW}[!] 解析IP出错 '{line}': {str(e)}")
                             continue
-                            
+
                 f.close()
             except Exception as e:
                 print(f"{self.c.RED}Error reading file {self.file}: {str(e)}")
@@ -204,7 +206,7 @@ class ArpSpoof:
                         start_ip, end_ip = ip_item.split("-")
                         ipini = int(ip2long(start_ip))
                         ipend = int(ip2long(end_ip))
-                        
+
                         for i in range(ipini, ipend + 1):
                             ip = long2ip(i)
                             if ip != local_ip and ip != self.gw:
@@ -250,7 +252,7 @@ class ArpSpoof:
             print(f"{self.c.RED}\n无法获取任何目标MAC地址，请检查网络连接")
             print(self.c.WHITE)
             return
-            
+
         # 开始ARP欺骗过程
         self.run = True
         threads = []
@@ -270,7 +272,7 @@ class ArpSpoof:
             threads.append(t)
             t.start()
             time.sleep(0.1)
-        
+
         # 等待所有线程完成
         for t in threads:
             t.join()
@@ -297,7 +299,7 @@ class ArpSpoof:
             local_ip = get_machine_default_ip()
 
         self.run = False
-        
+
         # 获取所有已经欺骗的目标
         print(f"{self.c.YELLOW}[!] 开始恢复所有ARP表...")
         
@@ -318,7 +320,7 @@ class ArpSpoof:
             print(f"{self.c.RED}[!] 恢复网关 {self.gw} 的ARP表时出错: {str(e)}")
 
         # 停止监控
-        self.stop_monitoring()
+        self.stop_monitor = True
 
         # 禁用IP转发
         disable_ip_route()
@@ -385,10 +387,12 @@ class ArpSpoof:
             if platform.system() == "Windows":
                 if self.verbose > 0:
                     print(f"{self.c.YELLOW}[*] 在Windows系统上使用netsh命令{self.c.WHITE}")
-                import subprocess
                 # 使用netsh命令，更现代的方法
                 output = subprocess.check_output(f"netsh interface ipv4 show neighbors", 
-                                              shell=True, stderr=subprocess.DEVNULL).decode('utf-8', errors='ignore')
+                                              shell=True, 
+                                              stderr=subprocess.PIPE,
+                                              encoding='utf-8', 
+                                              errors='ignore')
                 for line in output.splitlines():
                     if ip in line:
                         parts = line.split()
@@ -406,11 +410,12 @@ class ArpSpoof:
             elif platform.system() in ["Linux", "Darwin"]:
                 if self.verbose > 0:
                     print(f"{self.c.YELLOW}[*] 在{platform.system()}系统上使用ip neigh命令{self.c.WHITE}")
-                import subprocess
                 # 使用ip neigh命令，更现代的方法
                 try:
                     output = subprocess.check_output(["ip", "neigh", "show", ip], 
-                                                 stderr=subprocess.DEVNULL).decode('utf-8', errors='ignore')
+                                                 stderr=subprocess.PIPE,
+                                                 encoding='utf-8',
+                                                 errors='ignore')
                     for line in output.splitlines():
                         if ip in line and "lladdr" in line:
                             parts = line.split()
@@ -440,9 +445,12 @@ class ArpSpoof:
                 # Windows系统
                 if self.verbose > 0:
                     print(f"{self.c.YELLOW}[*] 在Windows系统上使用arp -a命令{self.c.WHITE}")
-                import subprocess
+                # 使用arp -a命令，更现代的方法
                 output = subprocess.check_output(f"arp -a {ip}", 
-                                             shell=True, stderr=subprocess.DEVNULL).decode('utf-8', errors='ignore')
+                                             shell=True, 
+                                             stderr=subprocess.PIPE,
+                                             encoding='utf-8',
+                                             errors='ignore')
                 for line in output.splitlines():
                     if ip in line:
                         parts = line.split()
@@ -459,9 +467,12 @@ class ArpSpoof:
                 # Linux/Mac系统
                 if self.verbose > 0:
                     print(f"{self.c.YELLOW}[*] 在{platform.system()}系统上使用arp -n命令{self.c.WHITE}")
-                import subprocess
+                # 使用arp -n命令，更现代的方法
                 output = subprocess.check_output(f"arp -n {ip}", 
-                                             shell=True, stderr=subprocess.DEVNULL).decode('utf-8', errors='ignore')
+                                             shell=True, 
+                                             stderr=subprocess.PIPE,
+                                             encoding='utf-8',
+                                             errors='ignore')
                 for line in output.splitlines():
                     if ip in line:
                         parts = line.split()
@@ -482,7 +493,6 @@ class ArpSpoof:
         if self.verbose > 0:
             print(f"{self.c.YELLOW}[5] 尝试发送ICMP请求刷新ARP缓存...{self.c.WHITE}")
         try:
-            import subprocess
             if self.verbose > 0:
                 print(f"{self.c.YELLOW}[*] 正在发送ICMP请求刷新ARP缓存: {ip}{self.c.WHITE}")
                 
@@ -490,19 +500,28 @@ class ArpSpoof:
                 if self.verbose > 0:
                     print(f"{self.c.YELLOW}[*] 在Windows系统上使用ping -n 1命令{self.c.WHITE}")
                 subprocess.call(["ping", "-n", "1", "-w", "500", ip], 
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                               stdout=subprocess.PIPE, 
+                               stderr=subprocess.PIPE,
+                               encoding='utf-8',
+                               errors='ignore')
             else:
                 if self.verbose > 0:
                     print(f"{self.c.YELLOW}[*] 在{platform.system()}系统上使用ping -c 1命令{self.c.WHITE}")
                 subprocess.call(["ping", "-c", "1", "-W", "1", ip], 
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                               stdout=subprocess.PIPE, 
+                               stderr=subprocess.PIPE,
+                               encoding='utf-8',
+                               errors='ignore')
                 
             # 再次尝试从ARP表获取
             if self.verbose > 0:
                 print(f"{self.c.YELLOW}[*] ICMP请求后再次检查ARP表{self.c.WHITE}")
             if platform.system() == "Windows":
                 output = subprocess.check_output(f"arp -a {ip}", 
-                                             shell=True, stderr=subprocess.DEVNULL).decode('utf-8', errors='ignore')
+                                             shell=True, 
+                                             stderr=subprocess.PIPE,
+                                             encoding='utf-8',
+                                             errors='ignore')
                 for line in output.splitlines():
                     if ip in line:
                         parts = line.split()
@@ -517,7 +536,10 @@ class ArpSpoof:
                     print(f"{self.c.YELLOW}[*] ICMP后arp -a命令仍未找到MAC地址{self.c.WHITE}")
             else:
                 output = subprocess.check_output(f"arp -n {ip}", 
-                                             shell=True, stderr=subprocess.DEVNULL).decode('utf-8', errors='ignore')
+                                             shell=True, 
+                                             stderr=subprocess.PIPE,
+                                             encoding='utf-8',
+                                             errors='ignore')
                 for line in output.splitlines():
                     if ip in line:
                         parts = line.split()
@@ -539,65 +561,65 @@ class ArpSpoof:
             print(f"{self.c.YELLOW}[6] 尝试使用scapy发送ARP请求...{self.c.WHITE}")
             print(f"{self.c.YELLOW}[*] 正在使用scapy ARP请求获取MAC: {ip}{self.c.WHITE}")
             
-        max_attempts = 3  # 最大尝试次数
-        timeouts = [0.8, 1.5, 2.5]  # 递增超时时间
-        
-        # 如果指定了接口，使用它
-        iface = self.interface if hasattr(self, 'interface') and self.interface else None
-        if self.verbose > 0 and iface:
-            print(f"{self.c.YELLOW}[*] 使用网络接口: {iface}{self.c.WHITE}")
-        
-        for i in range(max_attempts):
-            if self.verbose > 0:
-                print(f"{self.c.YELLOW}[*] scapy ARP请求尝试 {i+1}/{max_attempts}, 超时: {timeouts[i]}秒{self.c.WHITE}")
-            try:
-                # 尝试使用不同配置的ARP请求
-                if i == 0:
-                    # 标准ARP请求
-                    if self.verbose > 0:
-                        print(f"{self.c.YELLOW}[*] 发送标准ARP请求{self.c.WHITE}")
-                    ans, _ = srp(
-                        Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip), 
-                        timeout=timeouts[i], 
-                        verbose=0,
-                        retry=1,
-                        iface=iface
-                    )
-                elif i == 1:
-                    # 带有op=1(who-has)的显式请求
-                    if self.verbose > 0:
-                        print(f"{self.c.YELLOW}[*] 发送显式who-has ARP请求{self.c.WHITE}")
-                    ans, _ = srp(
-                        Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip, op=1), 
-                        timeout=timeouts[i], 
-                        verbose=0,
-                        retry=2,
-                        iface=iface
-                    )
-                else:
-                    # 最后尝试：明确设置hwlen和plen
-                    if self.verbose > 0:
-                        print(f"{self.c.YELLOW}[*] 发送带有明确hwlen和plen的ARP请求{self.c.WHITE}")
-                    ans, _ = srp(
-                        Ether(dst="ff:ff:ff:ff:ff:ff") / 
-                        ARP(pdst=ip, op=1, hwlen=6, plen=4), 
-                        timeout=timeouts[i], 
-                        verbose=0,
-                        retry=2,
-                        iface=iface
-                    )
-                
-                if ans:
-                    mac_address = ans[0][1].src
-                    self.mac_cache[ip] = mac_address  # 缓存结果
-                    if self.verbose > 0:
-                        print(f"{self.c.GREEN}[✓] scapy获取MAC地址: {ip} -> {mac_address} (尝试 {i+1}/{max_attempts}){self.c.WHITE}")
-                    return mac_address
-                elif self.verbose > 0:
-                    print(f"{self.c.YELLOW}[*] scapy ARP请求未收到响应 (尝试 {i+1}/{max_attempts}){self.c.WHITE}")
-            except Exception as e:
+            max_attempts = 3  # 最大尝试次数
+            timeouts = [0.8, 1.5, 2.5]  # 递增超时时间
+            
+            # 如果指定了接口，使用它
+            iface = self.interface if hasattr(self, 'interface') and self.interface else None
+            if self.verbose > 0 and iface:
+                print(f"{self.c.YELLOW}[*] 使用网络接口: {iface}{self.c.WHITE}")
+            
+            for i in range(max_attempts):
                 if self.verbose > 0:
-                    print(f"{self.c.YELLOW}[!] scapy获取MAC地址出错 (尝试 {i+1}/{max_attempts}): {str(e)}{self.c.WHITE}")
+                    print(f"{self.c.YELLOW}[*] scapy ARP请求尝试 {i+1}/{max_attempts}, 超时: {timeouts[i]}秒{self.c.WHITE}")
+                try:
+                    # 尝试使用不同配置的ARP请求
+                    if i == 0:
+                        # 标准ARP请求
+                        if self.verbose > 0:
+                            print(f"{self.c.YELLOW}[*] 发送标准ARP请求{self.c.WHITE}")
+                        ans, _ = srp(
+                            Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip), 
+                            timeout=timeouts[i], 
+                            verbose=0,
+                            retry=1,
+                            iface=iface
+                        )
+                    elif i == 1:
+                        # 带有op=1(who-has)的显式请求
+                        if self.verbose > 0:
+                            print(f"{self.c.YELLOW}[*] 发送显式who-has ARP请求{self.c.WHITE}")
+                        ans, _ = srp(
+                            Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip, op=1), 
+                            timeout=timeouts[i], 
+                            verbose=0,
+                            retry=2,
+                            iface=iface
+                        )
+                    else:
+                        # 最后尝试：明确设置hwlen和plen
+                        if self.verbose > 0:
+                            print(f"{self.c.YELLOW}[*] 发送带有明确hwlen和plen的ARP请求{self.c.WHITE}")
+                        ans, _ = srp(
+                            Ether(dst="ff:ff:ff:ff:ff:ff") / 
+                            ARP(pdst=ip, op=1, hwlen=6, plen=4), 
+                            timeout=timeouts[i], 
+                            verbose=0,
+                            retry=2,
+                            iface=iface
+                        )
+
+                    if ans:
+                        mac_address = ans[0][1].src
+                        self.mac_cache[ip] = mac_address  # 缓存结果
+                        if self.verbose > 0:
+                            print(f"{self.c.GREEN}[✓] scapy获取MAC地址: {ip} -> {mac_address} (尝试 {i+1}/{max_attempts}){self.c.WHITE}")
+                        return mac_address
+                    elif self.verbose > 0:
+                        print(f"{self.c.YELLOW}[*] scapy ARP请求未收到响应 (尝试 {i+1}/{max_attempts}){self.c.WHITE}")
+                except Exception as e:
+                    if self.verbose > 0:
+                        print(f"{self.c.YELLOW}[!] scapy获取MAC地址出错 (尝试 {i+1}/{max_attempts}): {str(e)}{self.c.WHITE}")
         
         # 7. 所有方法都失败，检查是否为非本地网络
         if self.verbose > 0:
@@ -811,228 +833,243 @@ class ArpSpoof:
             time.sleep(1)
     
     def _defend_arp_table(self):
-        """防御ARP表被篡改
-        监听ARP包并主动防御恶意ARP响应
+        """防御ARP欺骗攻击，监听ARP请求并确保本机ARP表保持正确"""
+        while not self.stop_arp_defense:
+            try:
+                # 定期检查和刷新ARP表中的关键条目
+                if hasattr(self, 'mac_cache'):
+                    for ip, mac in self.mac_cache.items():
+                        self._maintain_arp_table(ip, mac)
+                
+                # 检查是否存在ARP污染的迹象
+                if platform.system() == "Windows":
+                    result = subprocess.run(
+                        ["arp", "-a"],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        encoding='utf-8',
+                        errors='ignore'
+                    )
+                    
+                    # 执行简单的一致性检查
+                    if result.returncode == 0:
+                        seen_macs = {}
+                        for line in result.stdout.splitlines():
+                            # 提取IP和MAC地址
+                            ip_match = re.search(r'(\d+\.\d+\.\d+\.\d+)', line)
+                            mac_match = re.search(r'([0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2})', line)
+                            
+                            if ip_match and mac_match:
+                                ip = ip_match.group(1)
+                                mac = mac_match.group(1)
+                                
+                                # 自我检查: 我们的MAC地址不应该出现在其他条目中
+                                if hasattr(self, 'self_mac') and mac.replace('-', ':') == self.self_mac and hasattr(self, 'self_ip') and ip != self.self_ip:
+                                    # 检测到可能的ARP欺骗，修复它
+                                    if ip in self.mac_cache:
+                                        self._maintain_arp_table(ip, self.mac_cache[ip])
+                                
+                                # 如果一个MAC地址对应多个IP，可能存在ARP攻击
+                                if mac in seen_macs and ip != seen_macs[mac] and mac != "00-00-00-00-00-00":
+                                    # 异常情况: 相同MAC地址对应多个非广播IP
+                                    if ip in self.mac_cache:
+                                        self._maintain_arp_table(ip, self.mac_cache[ip])
+                                
+                                seen_macs[mac] = ip
+                else:
+                    # Linux/Mac系统
+                    result = subprocess.run(
+                        ["arp", "-n"],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        encoding='utf-8',
+                        errors='ignore'
+                    )
+                    
+                    # 执行简单的一致性检查
+                    if result.returncode == 0:
+                        seen_macs = {}
+                        for line in result.stdout.splitlines():
+                            # 跳过表头
+                            if "Address" in line or "HWaddress" in line:
+                                continue
+                                
+                            parts = line.split()
+                            if len(parts) >= 3:
+                                ip = parts[0]
+                                mac = parts[2]
+                                
+                                # 跳过无效MAC
+                                if mac == "00:00:00:00:00:00" or mac == "(incomplete)":
+                                    continue
+                                    
+                                # 自我检查: 我们的MAC地址不应该出现在其他条目中
+                                if hasattr(self, 'self_mac') and mac == self.self_mac and hasattr(self, 'self_ip') and ip != self.self_ip:
+                                    # 检测到可能的ARP欺骗，修复它
+                                    if ip in self.mac_cache:
+                                        self._maintain_arp_table(ip, self.mac_cache[ip])
+                                
+                                # 如果一个MAC地址对应多个IP，可能存在ARP攻击 
+                                if mac in seen_macs and ip != seen_macs[mac]:
+                                    # 异常情况: 相同MAC地址对应多个非广播IP
+                                    if ip in self.mac_cache:
+                                        self._maintain_arp_table(ip, self.mac_cache[ip])
+                                
+                                seen_macs[mac] = ip
+                                
+                # 休眠一段时间
+                time.sleep(2)
+            except Exception as e:
+                if hasattr(self, 'verbose') and self.verbose > 1:
+                    print(f"ARP防御线程出错: {str(e)}")
+                time.sleep(5)  # 异常情况下增加等待时间
+
+    def _maintain_arp_table(self, ip, mac):
+        """维护本机ARP表，确保指定IP的MAC地址保持正确
+        
+        参数:
+            ip: 需要维护的IP地址
+            mac: 该IP应该对应的正确MAC地址
         """
         try:
-            # 确保我们有必要的信息
-            if not hasattr(self, 'self_mac') or not hasattr(self, 'self_ip'):
-                print(f"{self.c.YELLOW}[!] 缺少本机信息，无法启动ARP防御")
-                return
+            if platform.system() == "Windows":
+                # 在Windows系统中使用netsh命令维护ARP表
+                # 1. 首先检查当前ARP表
+                result = subprocess.run(
+                    ["arp", "-a", ip],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    encoding='utf-8',
+                    errors='ignore'
+                )
                 
-            if self.verbose > 0:
-                print(f"{self.c.BWHITE}[*] ARP防御线程启动")
-            
-            # 创建一个保护的IP/MAC映射
-            protected_ips = {}
-            
-            # 添加网关IP到保护列表
-            if hasattr(self, 'gw') and self.gw:
-                gw_mac = self.get_mac(self.gw)
-                if gw_mac:
-                    protected_ips[self.gw] = gw_mac
-            
-            # 添加所有活跃目标到保护列表
-            for ip, mac in self.active_targets.items():
-                protected_ips[ip] = mac
-            
-            # 添加本机IP到保护列表
-            if hasattr(self, 'self_ip') and self.self_ip:
-                protected_ips[self.self_ip] = self.self_mac
-            
-            if self.verbose > 0:
-                print(f"{self.c.BWHITE}[*] 保护以下IP的ARP表项:")
-                for ip, mac in protected_ips.items():
-                    print(f"{self.c.BWHITE}    - {ip} -> {mac}")
-            
-            # 定义ARP包处理函数
-            def _process_arp(packet):
-                # 检查是否为ARP包
-                if ARP in packet:
-                    # 如果是ARP响应(is-at)
-                    if packet[ARP].op == 2:  # ARP响应
-                        # 检查响应是否涉及受保护的IP
-                        sender_ip = packet[ARP].psrc
-                        sender_mac = packet[ARP].hwsrc
-                        target_ip = packet[ARP].pdst
-                        
-                        # 检查是否有IP在保护列表中但MAC地址不匹配
-                        if sender_ip in protected_ips and protected_ips[sender_ip] != sender_mac:
-                            if self.verbose > 0:
-                                print(f"{self.c.RED}[!] 检测到对 {sender_ip} 的ARP欺骗尝试!")
-                                print(f"{self.c.RED}    期望MAC: {protected_ips[sender_ip]}")
-                                print(f"{self.c.RED}    接收MAC: {sender_mac}")
-                            
-                            # 立即发送正确的ARP信息进行修复
-                            correct_mac = protected_ips[sender_ip]
-                            # 构造ARP响应包来修复
-                            arp_fix = ARP(
-                                op=2,  # is-at响应
-                                psrc=sender_ip,
-                                hwsrc=correct_mac,
-                                pdst=target_ip,
-                                hwdst="ff:ff:ff:ff:ff:ff"  # 广播
-                            )
-                            send(arp_fix, verbose=0, count=3)  # 发送3次以确保修复
-                            
-                            if self.verbose > 0:
-                                print(f"{self.c.GREEN}[✓] 已发送ARP修复包")
-                            
-                            # 同时更新本机ARP表
-                            self._maintain_arp_table(sender_ip, correct_mac)
-            
-            # 开始嗅探ARP包
-            sniff(
-                filter="arp",  # 只捕获ARP包
-                prn=_process_arp,
-                store=0,
-                iface=self.interface,
-                stop_filter=lambda p: self.stop_arp_defense
-            )
-            
-        except Exception as e:
-            if self.verbose > 0:
-                print(f"{self.c.RED}[!] ARP防御线程出错: {str(e)}")
-        
-        if self.verbose > 0:
-            print(f"{self.c.YELLOW}[*] ARP防御线程已退出")
-    
-    def _maintain_arp_table(self, ip, mac):
-        """维护本机ARP表"""
-        try:
-            import subprocess
-            
-            # 确保MAC地址格式正确
-            if mac and ":" in mac:
-                # 使用系统命令更新ARP表
-                if platform.system() == "Windows":
-                    win_mac = mac.replace(":", "-")
-                    subprocess.run(f"arp -s {ip} {win_mac}", shell=True, 
-                                  stdout=subprocess.DEVNULL, 
-                                  stderr=subprocess.DEVNULL)
-                else:
-                    # Linux/macOS使用-i参数指定接口（如果有）
+                needs_update = True
+                if result.returncode == 0:
+                    # 检查输出中是否已包含正确的MAC
+                    if mac.replace(':', '-').lower() in result.stdout.lower():
+                        needs_update = False
+                
+                if needs_update:
+                    # 2. 删除可能存在的错误条目
+                    subprocess.run(
+                        ["arp", "-d", ip],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        encoding='utf-8',
+                        errors='ignore'
+                    )
+                    
+                    # 3. 添加静态ARP条目
+                    win_mac = mac.replace(':', '-')  # Windows使用连字符格式
+                    interface_param = []
                     if self.interface:
-                        subprocess.run(f"arp -s {ip} {mac} -i {self.interface}", shell=True,
-                                      stdout=subprocess.DEVNULL, 
-                                      stderr=subprocess.DEVNULL)
-                    else:
-                        subprocess.run(f"arp -s {ip} {mac}", shell=True,
-                                      stdout=subprocess.DEVNULL, 
-                                      stderr=subprocess.DEVNULL)
+                        interface_param = ["interface", self.interface]
+                    
+                    subprocess.run(
+                        ["netsh", "interface", "ipv4", "add", "neighbors"] + 
+                        interface_param + 
+                        [ip, win_mac],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        encoding='utf-8',
+                        errors='ignore'
+                    )
+                    
+            else:
+                # Linux/Mac系统
+                # 1. 检查当前ARP表
+                result = subprocess.run(
+                    ["arp", "-n", ip],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    encoding='utf-8',
+                    errors='ignore'
+                )
                 
-                # 写入到mac_cache缓存
-                if not hasattr(self, 'mac_cache'):
-                    self.mac_cache = {}
-                self.mac_cache[ip] = mac
+                needs_update = True
+                if result.returncode == 0:
+                    if mac.lower() in result.stdout.lower():
+                        needs_update = False
+                
+                if needs_update:
+                    # 2. 删除可能存在的错误条目
+                    subprocess.run(
+                        ["arp", "-d", ip],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        encoding='utf-8',
+                        errors='ignore'
+                    )
+                    
+                    # 3. 添加静态ARP条目
+                    interface_param = []
+                    if self.interface:
+                        interface_param = ["-i", self.interface]
+                    
+                    subprocess.run(
+                        ["arp", "-s", ip, mac] + interface_param,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        encoding='utf-8',
+                        errors='ignore'
+                    )
         except Exception as e:
-            if self.verbose > 0:
-                print(f"{self.c.YELLOW}[!] 更新ARP表失败: {str(e)}{self.c.WHITE}")
-            
+            if hasattr(self, 'verbose') and self.verbose > 1:
+                print(f"维护ARP表时出错: {str(e)}")
+
     def start_monitor(self):
-        """启动数据包监控"""
+        """
+        开始ARP流量监控，记录源IP和MAC的对应关系
+        """
+        if self.verbose > 0:
+            print(f"{self.c.GREEN}[+] 开始ARP监控...{self.c.WHITE}")
+        
+        # 创建MAC缓存如果不存在
+        if not hasattr(self, 'mac_cache'):
+            self.mac_cache = {}
+        
+        # 开始防御线程
+        if not hasattr(self, 'stop_arp_defense'):
+            self.stop_arp_defense = False
+        
+        if not hasattr(self, 'defense_thread') or not self.defense_thread.is_alive():
+            self.defense_thread = threading.Thread(target=self._defend_arp_table)
+            self.defense_thread.daemon = True
+            self.defense_thread.start()
+        
+        # 重置监控状态
         self.stop_monitor = False
         
-        if self.monitor_thread is None or not self.monitor_thread.is_alive():
-            print("开始监控网络流量...")
-            self.monitor_thread = threading.Thread(target=self._monitor_packets, daemon=True)
+        # 创建并启动监控线程，而不是在当前线程中执行
+        if not hasattr(self, 'monitor_thread') or not self.monitor_thread.is_alive():
+            self.monitor_thread = threading.Thread(target=self._run_monitor)
+            self.monitor_thread.daemon = True
             self.monitor_thread.start()
+            if self.verbose > 0:
+                print(f"{self.c.GREEN}[✓] ARP监控线程已启动{self.c.WHITE}")
     
-    def stop_monitoring(self):
-        """停止数据包监控"""
-        self.stop_monitor = True
-        if self.monitor_thread and self.monitor_thread.is_alive():
-            self.monitor_thread.join(2)  # 等待最多2秒
-    
-    def _monitor_packets(self):
-        """监控数据包"""
-        # 使用scapy的sniff函数监控数据包
+    def _run_monitor(self):
+        """
+        实际运行监控的方法，在单独线程中执行
+        """
         try:
-            sniff(prn=self._process_packet, 
-                  store=0, 
-                  stop_filter=lambda p: self.stop_monitor,
-                  iface=self.interface)
-        except Exception as e:
-            print(f"监控网络流量时出错: {str(e)}")
-    
-    def _process_packet(self, packet):
-        """处理捕获的数据包"""
-        # 只处理IP数据包
-        if IP in packet:
-            summary = []
-            src_ip = packet[IP].src
-            dst_ip = packet[IP].dst
-            proto = "???"
-            info = ""
-            
-            # 检查是否为TCP/UDP数据包
-            if TCP in packet:
-                proto = "TCP"
-                src_port = packet[TCP].sport
-                dst_port = packet[TCP].dport
-                
-                # 检查常见协议
-                if dst_port == 80 or src_port == 80:
-                    proto = "HTTP"
-                elif dst_port == 443 or src_port == 443:
-                    proto = "HTTPS"
-                elif dst_port == 21 or src_port == 21:
-                    proto = "FTP"
-                elif dst_port == 22 or src_port == 22:
-                    proto = "SSH"
-                elif dst_port == 25 or src_port == 25:
-                    proto = "SMTP"
-                
-                # TCP标志
-                flags = ""
-                if packet[TCP].flags.S:
-                    flags += "SYN "
-                if packet[TCP].flags.A:
-                    flags += "ACK "
-                if packet[TCP].flags.F:
-                    flags += "FIN "
-                if packet[TCP].flags.R:
-                    flags += "RST "
-                if packet[TCP].flags.P:
-                    flags += "PSH "
-                
-                info = f"{src_ip}:{src_port} -> {dst_ip}:{dst_port} [{flags.strip()}]"
-                
-                # 检查HTTP内容
-                if proto == "HTTP" and Raw in packet:
-                    try:
-                        http_data = packet[Raw].load.decode('utf-8', errors='ignore')
-                        if "GET " in http_data or "POST " in http_data:
-                            first_line = http_data.split('\r\n')[0]
-                            info += f" {first_line}"
-                    except:
-                        pass
-                
-            elif UDP in packet:
-                proto = "UDP"
-                src_port = packet[UDP].sport
-                dst_port = packet[UDP].dport
-                
-                # 检查常见协议
-                if dst_port == 53 or src_port == 53:
-                    proto = "DNS"
-                elif dst_port == 161 or src_port == 161:
-                    proto = "SNMP"
-                elif (dst_port == 5060 or src_port == 5060) and Raw in packet:
-                    proto = "SIP"
-                
-                info = f"{src_ip}:{src_port} -> {dst_ip}:{dst_port}"
-                
-                # 检查SIP内容
-                if proto == "SIP" and Raw in packet:
-                    try:
-                        sip_data = packet[Raw].load.decode('utf-8', errors='ignore')
-                        if "INVITE " in sip_data or "REGISTER " in sip_data or "OPTIONS " in sip_data:
-                            first_line = sip_data.split('\r\n')[0]
-                            info += f" {first_line}"
-                    except:
-                        pass
-            
-            # 将捕获的信息发送给回调
-            if info:
-                print(f"[{proto}] {info}")
+            # 使用Scapy监听ARP流量
+            while not self.stop_monitor:
+                try:
+                    packet = sniff(filter="arp", count=1, timeout=3)
+                    if packet and len(packet) > 0:
+                        # 解析ARP包
+                        arp = packet[0].getlayer(ARP)
+                        if arp:
+                            # 如果是ARP响应包，记录源IP和MAC地址
+                            if arp.op == 2:  # 2表示ARP响应
+                                self.mac_cache[arp.psrc] = arp.hwsrc
+                except Exception as e:
+                    if self.verbose > 1:
+                        print(f"{self.c.YELLOW}[!] 监控线程异常: {str(e)}{self.c.WHITE}")
+                    time.sleep(1)
+        except KeyboardInterrupt:
+            print(f"{self.c.RED}[!] 用户中断监控{self.c.WHITE}")
+        finally:
+            if self.verbose > 0:
+                print(f"{self.c.YELLOW}[*] ARP监控线程已停止{self.c.WHITE}")
