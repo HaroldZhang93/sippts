@@ -201,15 +201,15 @@
     "proto_input": "UDP",
     "payload_input": "0 PCMU (audio)",
     "mic_payload_input": "0 PCMU (audio)",
-    "verbose_check": false,
+    "verbose_check": true,
     "live_playback_check": true,
-    "mic_capture_check": false
+    "mic_capture_check": true
   },
   "ArpSpoofTab": {
     "ip_input": "192.168.100.10",
     "gateway_input": "192.168.100.254",
     "file_input": "",
-    "interface_input": "{8890599A-308E-4612-8CAE-23E2FD6EA43C} (192.168.100.91)",
+    "interface_input": "",
     "verbose_check": true,
     "monitor_check": true
   }

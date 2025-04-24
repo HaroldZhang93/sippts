@@ -133,10 +133,6 @@ class MainWindow(QMainWindow):
         self.crack_tab = CrackTab(self)
         self.tabs.addTab(self.crack_tab, "密码破解")
         
-        # SIP离线密码破解模块
-        self.dcrack_tab = DCrackTab(self)
-        self.tabs.addTab(self.dcrack_tab, "离线破解")
-        
         # SIP数据包分析模块
         self.dump_tab = DumpTab(self)
         self.tabs.addTab(self.dump_tab, "数据分析")
@@ -148,6 +144,10 @@ class MainWindow(QMainWindow):
         # SIP Digest Leak测试模块
         self.leak_tab = LeakTab(self)
         self.tabs.addTab(self.leak_tab, "Digest泄露")
+        
+        # SIP离线密码破解模块
+        self.dcrack_tab = DCrackTab(self)
+        self.tabs.addTab(self.dcrack_tab, "离线破解")
         
         # SIP消息发送模块
         self.send_tab = SendTab(self)
