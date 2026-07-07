@@ -27,17 +27,13 @@ class BaseTab(QWidget):
         raise NotImplementedError("子类必须实现start_module方法")
     
     def create_result_text(self, layout, row, col_span=4):
-        """创建结果文本框"""
+        """创建结果文本框（终端输出，样式由全局 HUD 主题 #termOutput 控制）"""
         self.result_text = QTextEdit()
         self.result_text.setReadOnly(True)
-        self.result_text.setFontFamily("Courier New")
-        self.result_text.setStyleSheet("""
-            QTextEdit {
-                background-color: black;
-                color: white;
-                font-size: 20px;
-            }
-        """)
+        self.result_text.setObjectName("termOutput")
+        self.result_text.setFontFamily("Consolas")
+        # 终端风格：不自动换行，避免被空格填充的进度行/ASCII 表格被折成多行
+        self.result_text.setLineWrapMode(QTextEdit.NoWrap)
         layout.addWidget(self.result_text, row, 0, 1, col_span)
         
         # 设置行的拉伸因子

@@ -4,13 +4,22 @@ import traceback
 import os
 import warnings
 import time
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget, QMessageBox
-from PyQt5.QtCore import QThread, pyqtSignal, QObject, QEvent
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QTabWidget, QMessageBox,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame
+)
+from PyQt5.QtCore import QThread, pyqtSignal, QObject, QEvent, QTimer, QTime, Qt
 from PyQt5.QtGui import QTextCharFormat, QColor, QTextCursor, QIcon
 
 # 忽略PyQt5相关的废弃警告
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+# 主题与仪表盘
+from sippts.gui import theme as T
+from sippts.gui.common.data_store import (
+    DataStore, parse_found_line, parse_exten_line, parse_cred_line
+)
+from sippts.gui.modules.dashboard_tab import DashboardTab
 # 导入模块标签页
 from sippts.gui.modules.rtphijack_tab import RTPHijackTab
 from sippts.gui.modules.rtpbleedinject_tab import RTPBleedInjectTab
@@ -44,13 +53,21 @@ class LogManager(QObject):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("SIPPTS - SIP Penetration Testing Tools")
+        self.setWindowTitle("IMS 安全测试平台")
         self.setMinimumSize(800, 600)
         self.setGeometry(100, 100, 1920, 1080)
-        
+
         # 创建主标签页控件
         self.tabs = QTabWidget()
-        self.setCentralWidget(self.tabs)
+
+        # 构建带 HUD 顶栏的中央容器
+        central = QWidget()
+        central_layout = QVBoxLayout(central)
+        central_layout.setContentsMargins(0, 0, 0, 0)
+        central_layout.setSpacing(0)
+        central_layout.addWidget(self._build_hud_header())
+        central_layout.addWidget(self.tabs)
+        self.setCentralWidget(central)
         
         # 当前活动的模块工作线程
         self.current_worker = None
@@ -64,6 +81,43 @@ class MainWindow(QMainWindow):
         # 初始化各个功能标签页
         self.init_tabs()
         
+    def _build_hud_header(self):
+        """构建顶部 HUD 标题栏：LOGO + 标题 + 实时时钟 + 在线状态。"""
+        header = QFrame()
+        header.setObjectName("hudHeader")
+        header.setFixedHeight(58)
+        lay = QHBoxLayout(header)
+        lay.setContentsMargins(20, 0, 20, 0)
+        lay.setSpacing(14)
+
+        title = QLabel("IMS")
+        title.setObjectName("hudTitle")
+        lay.addWidget(title)
+        title_a = QLabel("安全测试平台")
+        title_a.setObjectName("hudTitleAccent")
+        lay.addWidget(title_a)
+
+        lay.addStretch()
+
+        self.hud_clock = QLabel("--:--:--")
+        self.hud_clock.setObjectName("hudClock")
+        lay.addWidget(self.hud_clock)
+
+        status = QLabel("● ONLINE · SIP/RTP")
+        status.setObjectName("hudStatus")
+        status.setStyleSheet(f"color:{T.OK};")
+        lay.addWidget(status)
+
+        # 时钟
+        self._clock_timer = QTimer(self)
+        self._clock_timer.timeout.connect(self._update_clock)
+        self._clock_timer.start(1000)
+        self._update_clock()
+        return header
+
+    def _update_clock(self):
+        self.hud_clock.setText(QTime.currentTime().toString("HH:mm:ss"))
+
     def init_color_map(self):
         """初始化ANSI颜色代码到Qt颜色的映射"""
         self.color_map = {
@@ -120,7 +174,11 @@ class MainWindow(QMainWindow):
     def init_tabs(self):
         """初始化所有功能标签页"""
         # 创建并添加各个功能标签页
-        
+
+        # 总览仪表盘
+        self.dashboard_tab = DashboardTab(self)
+        self.tabs.addTab(self.dashboard_tab, "总览")
+
         # SIP扫描模块
         self.scan_tab = ScanTab(self)
         self.tabs.addTab(self.scan_tab, "SIP扫描")
@@ -173,16 +231,25 @@ class MainWindow(QMainWindow):
         self.arpspoof_tab = ArpSpoofTab(self)
         self.tabs.addTab(self.arpspoof_tab, "ARP欺骗")
         
-        # 其他模块将在这里添加
-        # self.exten_tab = ExtenTab(self)
-        # self.tabs.addTab(self.exten_tab, "分机枚举")
-        # 
-        # 等等...
-    
+        # 统一为各模块的开始/停止按钮打上主题角色（命中全局 QSS）
+        self._apply_button_roles()
+
+    def _apply_button_roles(self):
+        """为所有标签页的开始/停止按钮设置 objectName，使其命中主题样式。"""
+        for i in range(self.tabs.count()):
+            tab = self.tabs.widget(i)
+            for attr, role in (("start_btn", "primaryBtn"), ("stop_btn", "dangerBtn")):
+                btn = getattr(tab, attr, None)
+                if btn is not None:
+                    btn.setObjectName(role)
+                    btn.style().unpolish(btn)
+                    btn.style().polish(btn)
+
     def setup_logging(self, text_widget):
         """设置日志输出到指定的文本框"""
         text_widget.clear()
-        
+        self._ow = False  # 重置“回车覆盖”标志，新一轮输出从干净状态开始
+
         # 先断开之前的连接
         if hasattr(self.log_manager, 'log_signal'):
             try:
@@ -192,32 +259,55 @@ class MainWindow(QMainWindow):
         # 建立新的连接
         self.log_manager.log_signal.connect(lambda text: self.append_log(text_widget, text))
     
-    def append_log(self, text_widget, text):
-        """添加日志到文本框""" 
-        cursor = text_widget.textCursor()
-        
-        # 分割ANSI转义序列
+    def _insert_ansi(self, cursor, text):
+        """把含 ANSI 颜色码的文本按颜色插入到 cursor 处。"""
+        if text == "":
+            return
         parts = re.split(r'(\x1B\[[0-9;]*m)', text)
-        
         current_format = QTextCharFormat()
-        current_format.setForeground(QColor("#FFFFFF"))  # 默认白色
-        
+        current_format.setForeground(QColor(T.TERM_FG))  # 默认终端字色（青白）
         for part in parts:
             if part.startswith('\033['):
-                # 这是一个颜色代码
                 if part in self.color_map:
                     current_format = self.color_map[part]
                 else:
-                    # 如果找不到精确匹配，尝试找到最接近的颜色代码
                     for code in self.color_map:
-                        if part.startswith(code[:5]):  # 匹配前5个字符
+                        if part.startswith(code[:5]):
                             current_format = self.color_map[code]
                             break
-            else:
-                # 这是文本内容
+            elif part:
                 cursor.insertText(part, current_format)
-        
-        # 滚动到底部
+
+    def append_log(self, text_widget, text):
+        r"""添加日志到文本框，正确处理 \r（回车覆盖当前行）与 \n（换行）。
+
+        扫描/破解等模块用 `print(..., end='\r')` 在同一行滚动刷新进度。
+        终端语义：\r 仅把光标移回行首（不删除），随后的文本覆盖本行；\n 才换行。
+        由于 print 可能把正文与 '\r' 拆成两次写入，必须用一个跨调用保持的
+        “待覆盖”标志（self._ow）来还原单行滚动，而不能简单按单次写入折叠。
+        """
+        cursor = text_widget.textCursor()
+        cursor.movePosition(QTextCursor.End)
+
+        for tok in re.split(r'([\r\n])', text):
+            if tok == '':
+                continue
+            if tok == '\n':
+                cursor.movePosition(QTextCursor.End)
+                cursor.insertText('\n')
+                self._ow = False
+            elif tok == '\r':
+                self._ow = True            # 仅标记：下一段文本覆盖当前行
+            else:
+                cursor.movePosition(QTextCursor.End)
+                if getattr(self, "_ow", False):
+                    # 覆盖：清空当前行后从行首写入
+                    cursor.movePosition(QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+                    cursor.removeSelectedText()
+                    self._ow = False
+                self._insert_ansi(cursor, tok)
+
+        cursor.movePosition(QTextCursor.End)
         text_widget.setTextCursor(cursor)
         text_widget.ensureCursorVisible()
     
@@ -236,15 +326,84 @@ class MainWindow(QMainWindow):
                     print(f"停止模块时出错: {str(e)}")
                     traceback.print_exc()
             
+            # 停止扫描数据监视
+            self._stop_scan_monitor()
+
             # 停止工作线程
             self.current_worker.terminate()
             self.current_worker.wait()
             self.current_worker = None
-            
+
             # 通知当前活动的标签页模块已停止
             if hasattr(current_tab, 'on_module_stopped'):
                 current_tab.on_module_stopped()
-    
+
+    # ---------------- 模块数据监视（喂给总览仪表盘） ----------------
+    # 模块类名 -> (kind, 启动时清空范围；None 表示累计不清空)
+    # 扫描/枚举为“替换式”（新一轮替换旧结果）；两个破解模块共用 creds 且累计去重。
+    MONITORED = {
+        "SipScan": ("scan", "hosts"),
+        "SipExten": ("exten", "extensions"),
+        "SipRemoteCrack": ("rcrack", None),
+        "SipDigestCrack": ("dcrack", None),
+    }
+
+    def _start_scan_monitor(self, mod):
+        """开始轮询正在运行的模块实例，把新结果按类型送入 DataStore。"""
+        kind, scope = self.MONITORED[type(mod).__name__]
+        ds = DataStore()
+        if scope:
+            ds.reset(scope)
+        ds.scan_started.emit(kind)
+        self._scan_mod = mod
+        self._scan_kind = kind
+        if getattr(self, "_scan_poll", None) is None:
+            self._scan_poll = QTimer(self)
+            self._scan_poll.timeout.connect(self._poll_scan_data)
+        self._scan_poll.start(400)
+
+    def _poll_scan_data(self):
+        mod = getattr(self, "_scan_mod", None)
+        if mod is None:
+            return
+        ds = DataStore()
+        kind = getattr(self, "_scan_kind", "scan")
+        try:
+            lines = list(getattr(mod, "found", []))  # 拷贝快照，避免与工作线程并发修改
+        except Exception:
+            lines = []
+        for line in lines:
+            if kind == "scan":
+                host = parse_found_line(line)
+                if host:
+                    ds.add_host(host)
+            elif kind == "exten":
+                ext = parse_exten_line(line)
+                if ext:
+                    ds.add_extension(ext)
+            elif kind == "rcrack":
+                cred = parse_cred_line(line, "远程爆破")
+                if cred:
+                    ds.add_cred(cred)
+            elif kind == "dcrack":
+                cred = parse_cred_line(line, "离线破解")
+                if cred:
+                    ds.add_cred(cred)
+        if kind == "scan":
+            try:
+                ds.set_cve_count(len(getattr(mod, "cve", [])))
+            except Exception:
+                pass
+
+    def _stop_scan_monitor(self):
+        if getattr(self, "_scan_mod", None) is None:
+            return
+        if getattr(self, "_scan_poll", None) is not None:
+            self._scan_poll.stop()
+        self._poll_scan_data()  # 尽力做最后一次捕获
+        DataStore().scan_finished.emit(getattr(self, "_scan_kind", "scan"))
+        self._scan_mod = None
+
     def run_module(self, module_instance, on_finished_callback):
         """运行指定的模块实例"""
         try:
@@ -266,12 +425,17 @@ class MainWindow(QMainWindow):
                 # 创建工作线程
                 self.current_worker = ModuleWorker(module_instance)
                 self.current_worker.finished.connect(on_finished_callback)
-                
+                self.current_worker.finished.connect(self._stop_scan_monitor)
+
                 # 连接错误信号
                 self.current_worker.error.connect(lambda msg: current_tab.result_text.append(msg))
-                
+
                 # 启动线程
                 self.current_worker.start()
+
+                # 受支持的模块：启动数据监视，把实时结果送入总览仪表盘
+                if type(module_instance).__name__ in self.MONITORED:
+                    self._start_scan_monitor(module_instance)
         except Exception as e:
             # 处理异常
             error_msg = f"运行模块时出错: {str(e)}"
@@ -348,7 +512,10 @@ class ModuleWorker(QThread):
 def run_gui():
     """运行GUI应用程序"""
     app = QApplication(sys.argv)
-    
+
+    # 应用暗蓝 HUD 全局主题
+    T.apply_theme(app)
+
     # 设置全局异常处理
     sys._excepthook = sys.excepthook
     

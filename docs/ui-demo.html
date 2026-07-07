@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMS 安全测试平台 — 实时演示（录屏用）</title>
+<style>
+  :root{
+    --bg:#0A1018; --bg2:#0D1726; --panel:#111E2E; --panel-border:#1F3D55;
+    --accent:#00E5D0; --accent2:#00B4D8; --accent-hi:#2FF3E0;
+    --text:#E2EDF4; --muted:#7E97AC;
+    --input-bg:#0D1A28; --input-border:#244157;
+    --term-bg:#060C12; --term-fg:#CFE8E5;
+    --ok:#3DDC97; --warn:#FFB703; --err:#FF5C72;
+    --ui:"Microsoft YaHei UI","Segoe UI",sans-serif;
+    --mono:"Consolas","JetBrains Mono","Courier New",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1400px 700px at 85% -10%, rgba(0,180,216,.10), transparent 60%),
+      radial-gradient(1000px 600px at -10% 110%, rgba(0,229,208,.06), transparent 55%),
+      var(--bg);
+    color:var(--text); font-family:var(--ui); font-size:13px;
+    display:flex; justify-content:center; padding:16px;
+  }
+  .app{
+    width:1480px; max-width:100%; background:var(--bg2);
+    border:1px solid var(--panel-border); border-radius:10px; overflow:hidden;
+    box-shadow:0 18px 60px rgba(0,0,0,.55);
+  }
+
+  /* HUD 顶栏 */
+  .hud{display:flex;align-items:center;gap:14px;padding:12px 20px;position:relative;
+       background:linear-gradient(90deg,#0C1A2B,#0B1626 60%,#0A1320);
+       border-bottom:1px solid var(--panel-border);}
+  .hud::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+       background:linear-gradient(90deg,transparent,var(--accent) 20%,var(--accent2) 60%,transparent);opacity:.7;}
+  .title{font-size:17px;font-weight:700;letter-spacing:1px;}
+  .title b{color:var(--accent);}
+  .phasechip{font-family:var(--mono);font-size:12px;color:var(--accent);
+       border:1px solid var(--accent);border-radius:20px;padding:3px 12px;letter-spacing:1px;
+       box-shadow:0 0 14px rgba(0,229,208,.25);}
+  .hud .sp{flex:1;}
+  .target{font-family:var(--mono);font-size:12px;color:var(--muted);}
+  .target b{color:var(--accent2);}
+  .clock{font-family:var(--mono);color:var(--accent2);font-size:13px;letter-spacing:1px;}
+  .status{display:flex;align-items:center;gap:7px;color:var(--muted);font-family:var(--mono);font-size:12px;}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok);animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* 阶段进度条 */
+  .phases{display:flex;gap:0;background:var(--bg);border-bottom:1px solid var(--panel-border);}
+  .ph{flex:1;padding:9px 8px;text-align:center;font-size:12.5px;color:var(--muted);position:relative;
+      border-right:1px solid var(--panel-border);transition:color .3s,background .3s;}
+  .ph:last-child{border-right:none;}
+  .ph .pn{font-family:var(--mono);font-size:10px;opacity:.7;margin-right:6px;}
+  .ph.active{color:var(--accent);background:rgba(0,229,208,.06);text-shadow:0 0 10px rgba(0,229,208,.5);}
+  .ph.done{color:var(--ok);}
+  .ph.active::after{content:"";position:absolute;left:0;bottom:-1px;height:2px;width:100%;
+      background:var(--accent);box-shadow:0 0 10px var(--accent);}
+  .ph.done::after{content:"";position:absolute;left:0;bottom:-1px;height:2px;width:100%;background:var(--ok);}
+
+  .wrap{padding:14px;display:grid;gap:12px;}
+  .card{position:relative;border:1px solid var(--panel-border);border-radius:8px;
+        background:linear-gradient(180deg,rgba(0,229,208,.02),transparent 40%),var(--panel);padding:12px 14px;}
+  .ct{color:var(--accent);font-size:11.5px;font-weight:600;letter-spacing:.5px;margin-bottom:10px;}
+  .ct::before{content:"▌ ";}
+  .ct .sub{color:var(--muted);font-weight:400;font-family:var(--mono);float:right;}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+  .kpi .lab{color:var(--muted);font-size:11.5px;}
+  .kpi .num{font-family:var(--mono);font-size:30px;font-weight:700;line-height:1.1;margin-top:4px;}
+  .kpi .num small{font-size:14px;color:var(--muted);}
+  .kpi .bar{height:5px;border-radius:3px;background:var(--input-bg);overflow:hidden;margin-top:8px;border:1px solid var(--input-border);}
+  .kpi .bar>i{display:block;height:100%;width:0;transition:width .4s;}
+  .cy{color:var(--accent)} .c2{color:var(--accent2)} .gr{color:var(--ok)} .rd{color:var(--err)} .am{color:var(--warn)}
+  .bg-cy{background:var(--accent)} .bg-gr{background:var(--ok)} .bg-rd{background:var(--err)} .bg-am{background:var(--warn)} .bg-c2{background:var(--accent2)}
+
+  .grid3{display:grid;grid-template-columns:300px 1fr 300px;gap:12px;}
+  .grid-mid{display:grid;grid-template-columns:1fr 360px 300px;gap:12px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+  /* 雷达 */
+  .radar{position:relative;width:230px;height:230px;border-radius:50%;margin:4px auto 0;overflow:hidden;
+         background:radial-gradient(circle,rgba(0,229,208,.07),transparent 70%);border:1px solid var(--panel-border);}
+  .ring{position:absolute;border:1px solid rgba(31,61,85,.9);border-radius:50%;top:50%;left:50%;transform:translate(-50%,-50%);}
+  .cross{position:absolute;background:rgba(31,61,85,.9);}
+  .cross.h{left:0;right:0;top:50%;height:1px} .cross.v{top:0;bottom:0;left:50%;width:1px}
+  .sweep{position:absolute;inset:0;border-radius:50%;
+         background:conic-gradient(from 0deg,rgba(0,229,208,.5),rgba(0,229,208,.1) 40deg,transparent 60deg);
+         animation:spin 3s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .blip{position:absolute;width:9px;height:9px;border-radius:50%;transform:translate(-50%,-50%);
+        box-shadow:0 0 12px currentColor;animation:pop .5s ease;}
+  @keyframes pop{from{transform:translate(-50%,-50%) scale(2.5);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+
+  /* 环形图 */
+  .donut-wrap{display:flex;align-items:center;gap:14px;}
+  .legend{font-size:12px;line-height:1.9;}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;vertical-align:-1px;}
+  .legend .v{color:var(--muted);font-family:var(--mono);float:right;margin-left:14px;}
+
+  /* 通用图表 svg */
+  .chart{width:100%;display:block;}
+  .axis{fill:var(--muted);font-size:9px;font-family:var(--mono);}
+  .gridln{stroke:rgba(31,61,85,.55);stroke-width:1;}
+
+  /* 仪表（威胁指数） */
+  .gauge-val{text-align:center;font-family:var(--mono);font-weight:700;font-size:26px;margin-top:-14px;}
+  .gauge-lab{text-align:center;color:var(--muted);font-size:11px;}
+
+  /* 终端日志 */
+  .term{background:var(--term-bg);border:1px solid var(--panel-border);border-radius:6px;
+        font-family:var(--mono);font-size:12px;line-height:1.65;color:var(--term-fg);
+        height:200px;overflow:hidden;padding:8px 10px;}
+  .term .ln{white-space:nowrap;}
+  .term .t{color:#4d6378;}
+  .term .ok{color:var(--ok)} .term .err{color:var(--err)} .term .warn{color:var(--warn)}
+  .term .cy{color:var(--accent)} .term .mut{color:var(--muted)} .term .c2{color:var(--accent2)}
+  .scanline{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:8px;white-space:nowrap;overflow:hidden;}
+  .scanline .ip{color:var(--accent);}
+
+  /* 表格 */
+  table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono);}
+  thead th{text-align:left;color:var(--accent2);font-weight:600;font-size:10.5px;letter-spacing:.5px;
+           padding:7px 8px;border-bottom:1px solid var(--panel-border);text-transform:uppercase;}
+  tbody td{padding:6px 8px;border-bottom:1px solid rgba(31,61,85,.4);}
+  tbody tr{animation:rowin .4s ease;}
+  @keyframes rowin{from{opacity:0;transform:translateX(-10px);background:rgba(0,229,208,.12)}to{opacity:1;transform:none}}
+  .tag{padding:1px 8px;border-radius:20px;font-size:10.5px;font-family:var(--ui);}
+  .tag.ok{color:var(--ok);background:rgba(61,220,151,.12);border:1px solid rgba(61,220,151,.4)}
+  .tag.warn{color:var(--warn);background:rgba(255,183,3,.12);border:1px solid rgba(255,183,3,.4)}
+  .tag.err{color:var(--err);background:rgba(255,92,114,.12);border:1px solid rgba(255,92,114,.4)}
+  .tbl-scroll{height:150px;overflow:hidden;}
+  td .cy{color:var(--accent)} td .rd{color:var(--err)} td .am{color:var(--warn)}
+
+  /* 告警 toast */
+  .toast-host{position:fixed;top:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:50;}
+  .toast{background:rgba(20,12,16,.96);border:1px solid var(--err);border-left:4px solid var(--err);
+         border-radius:8px;padding:12px 16px;min-width:300px;color:var(--text);
+         box-shadow:0 8px 30px rgba(0,0,0,.5),0 0 18px rgba(255,92,114,.25);
+         animation:toastin .4s ease;}
+  @keyframes toastin{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+  .toast .th{color:var(--err);font-weight:700;font-size:13px;margin-bottom:3px;}
+  .toast .tb{color:var(--muted);font-size:12px;font-family:var(--mono);}
+
+  /* throughput sparkline 卡片小标题数值 */
+  .metric{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+  .metric .big{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent);}
+  .metric .unit{color:var(--muted);font-size:11px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="hud">
+    <div class="title">IMS <b>安全测试平台</b></div>
+    <div class="phasechip" id="phaseChip">待命</div>
+    <div class="sp"></div>
+    <div class="target">目标网段 <b id="targetNet">192.168.31.0/24</b></div>
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="status"><span class="dot"></span> ONLINE</div>
+  </div>
+
+  <div class="phases" id="phases">
+    <div class="ph" data-k="scan"><span class="pn">01</span>资产扫描</div>
+    <div class="ph" data-k="enum"><span class="pn">02</span>分机枚举</div>
+    <div class="ph" data-k="crack"><span class="pn">03</span>口令破解</div>
+    <div class="ph" data-k="vuln"><span class="pn">04</span>漏洞研判</div>
+    <div class="ph" data-k="report"><span class="pn">05</span>生成报告</div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- KPI -->
+    <div class="kpis">
+      <div class="card kpi"><div class="lab">扫描进度</div>
+        <div class="num cy"><span id="kScan">0</span><small>/254</small></div>
+        <div class="bar"><i class="bg-cy" id="kScanBar"></i></div></div>
+      <div class="card kpi"><div class="lab">发现主机</div>
+        <div class="num c2" id="kHost">0</div>
+        <div class="bar"><i class="bg-c2" id="kHostBar"></i></div></div>
+      <div class="card kpi"><div class="lab">发现分机</div>
+        <div class="num cy" id="kExt">0</div>
+        <div class="bar"><i class="bg-cy" id="kExtBar"></i></div></div>
+      <div class="card kpi"><div class="lab">破解凭证</div>
+        <div class="num gr" id="kCred">0</div>
+        <div class="bar"><i class="bg-gr" id="kCredBar"></i></div></div>
+      <div class="card kpi"><div class="lab">风险告警</div>
+        <div class="num rd" id="kCve">0</div>
+        <div class="bar"><i class="bg-rd" id="kCveBar"></i></div></div>
+    </div>
+
+    <!-- 雷达 / 趋势 / 环形 -->
+    <div class="grid3">
+      <div class="card"><div class="ct">实时探测雷达 <span class="sub" id="radarSub">0 目标</span></div>
+        <div class="radar" id="radar">
+          <div class="ring" style="width:75%;height:75%"></div>
+          <div class="ring" style="width:50%;height:50%"></div>
+          <div class="ring" style="width:25%;height:25%"></div>
+          <div class="cross h"></div><div class="cross v"></div>
+          <div class="sweep"></div>
+        </div>
+      </div>
+      <div class="card"><div class="ct">发现趋势（累计） <span class="sub" id="trendSub">主机+分机+凭证</span></div>
+        <svg class="chart" id="trend" height="210" viewBox="0 0 760 210" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="card"><div class="ct">协议分布</div>
+        <div class="donut-wrap">
+          <svg width="150" height="150" viewBox="0 0 42 42" id="donut">
+            <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--input-bg)" stroke-width="5"/>
+            <circle class="dseg" cx="21" cy="21" r="15.9" fill="none" stroke="var(--accent)"  stroke-width="5" stroke-dasharray="0 100" transform="rotate(-90 21 21)"/>
+            <circle class="dseg" cx="21" cy="21" r="15.9" fill="none" stroke="var(--accent2)" stroke-width="5" stroke-dasharray="0 100" transform="rotate(-90 21 21)"/>
+            <circle class="dseg" cx="21" cy="21" r="15.9" fill="none" stroke="var(--warn)"    stroke-width="5" stroke-dasharray="0 100" transform="rotate(-90 21 21)"/>
+            <text x="21" y="20.5" text-anchor="middle" fill="var(--text)" font-size="6" id="donutTotal" font-family="var(--mono)">0</text>
+            <text x="21" y="26" text-anchor="middle" fill="var(--muted)" font-size="3">主机</text>
+          </svg>
+          <div class="legend">
+            <div><i style="background:var(--accent)"></i>UDP <span class="v" id="lgUdp">0</span></div>
+            <div><i style="background:var(--accent2)"></i>TCP <span class="v" id="lgTcp">0</span></div>
+            <div><i style="background:var(--warn)"></i>TLS <span class="v" id="lgTls">0</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 日志 / 响应分布 / 吞吐+威胁指数 -->
+    <div class="grid-mid">
+      <div class="card"><div class="ct">实时事件流</div>
+        <div class="term" id="term"></div>
+        <div class="scanline" id="scanline"></div>
+      </div>
+      <div class="card"><div class="ct">响应状态分布</div>
+        <svg class="chart" id="bars" height="220" viewBox="0 0 360 220" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="card">
+        <div class="ct">探测吞吐</div>
+        <div class="metric"><span><span class="big" id="ppsVal">0</span> <span class="unit">pkt/s</span></span>
+             <span class="unit" id="pktTotal">累计 0</span></div>
+        <svg class="chart" id="spark" height="56" viewBox="0 0 300 56" preserveAspectRatio="none"></svg>
+        <div class="ct" style="margin-top:14px;">威胁指数</div>
+        <svg width="100%" height="92" viewBox="0 0 200 110" id="gauge"></svg>
+        <div class="gauge-val" id="gaugeVal" style="color:var(--ok)">0</div>
+        <div class="gauge-lab" id="gaugeLab">安全</div>
+      </div>
+    </div>
+
+    <!-- 资产表 / 凭证表 -->
+    <div class="grid2">
+      <div class="card"><div class="ct">发现资产（主机） <span class="sub" id="assetSub">0</span></div>
+        <div class="tbl-scroll">
+          <table><thead><tr><th>IP 地址</th><th>端口</th><th>协议</th><th>设备指纹</th><th>响应</th><th>状态</th></tr></thead>
+            <tbody id="assetBody"></tbody></table>
+        </div>
+      </div>
+      <div class="card"><div class="ct">分机 &amp; 凭证发现 <span class="sub" id="findSub">0</span></div>
+        <div class="tbl-scroll">
+          <table><thead><tr><th>类型</th><th>目标</th><th>分机/用户</th><th>口令/响应</th><th>来源</th></tr></thead>
+            <tbody id="findBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<div class="toast-host" id="toasts"></div>
+
+<script>
+/* ============================================================
+   单一状态模型 + 脚本化剧情：所有面板都由同一份 state 派生，
+   保证数据之间逻辑自洽（发现主机→KPI/雷达/环形/趋势/表 同步变化）。
+   整段剧情循环播放，便于录屏。
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+
+// —— 剧本：一个真实可信的内网，6 台设备 + 其分机/凭证/漏洞有从属关系 ——
+const SUBNET = "192.168.31.";
+const PBX = "192.168.31.10";   // 分机/凭证都挂在这台 Asterisk 上，逻辑自洽
+const SCRIPT_HOSTS = [
+  {t:5,  ip:"192.168.31.10",  port:"5060", proto:"UDP", ua:"Asterisk PBX 18.6", type:"Server", resp:"200 OK"},
+  {t:8,  ip:"192.168.31.23",  port:"5060", proto:"UDP", ua:"FreePBX/chan_pjsip", type:"Server", resp:"401 Unauthorized"},
+  {t:12, ip:"192.168.31.77",  port:"5060", proto:"UDP", ua:"Grandstream UCM6202", type:"Device", resp:"200 OK"},
+  {t:16, ip:"192.168.31.91",  port:"5061", proto:"TLS", ua:"Yealink SIP-T46G", type:"Device", resp:"401 Unauthorized"},
+  {t:20, ip:"192.168.31.112", port:"5060", proto:"UDP", ua:"3CX PhoneSystem", type:"Server", resp:"403 Forbidden"},
+  {t:24, ip:"192.168.31.150", port:"5080", proto:"UDP", ua:"MicroSIP", type:"Device", resp:"200 OK"},
+];
+const SCRIPT_EXTS = [
+  {t:31, ip:PBX, exten:"1001", resp:"401 Unauthorized", auth:"required"},
+  {t:34, ip:PBX, exten:"1002", resp:"401 Unauthorized", auth:"required"},
+  {t:37, ip:PBX, exten:"1003", resp:"401 Unauthorized", auth:"required"},
+  {t:40, ip:PBX, exten:"1004", resp:"200 OK",           auth:"none"},   // 无鉴权，亮点
+  {t:43, ip:PBX, exten:"1005", resp:"401 Unauthorized", auth:"required"},
+];
+const SCRIPT_CREDS = [
+  {t:48, ip:PBX, user:"1001", pwd:"123456",   source:"远程爆破"},
+  {t:52, ip:PBX, user:"1003", pwd:"qwerty",   source:"远程爆破"},
+  {t:56, ip:PBX, user:"1002", pwd:"P@ssw0rd", source:"离线破解"},
+];
+const SCRIPT_CVES = [
+  {t:60, ip:"192.168.31.77", cve:"CVE-2020-5722", dev:"Grandstream UCM6202", sev:"高危"},
+  {t:64, ip:PBX,             cve:"CVE-2021-32558", dev:"Asterisk 18.6",      sev:"中危"},
+];
+const PHASES = [
+  {k:"scan",   s:2,  e:28, label:"资产扫描"},
+  {k:"enum",   s:28, e:45, label:"分机枚举"},
+  {k:"crack",  s:45, e:58, label:"口令破解"},
+  {k:"vuln",   s:58, e:67, label:"漏洞研判"},
+  {k:"report", s:67, e:78, label:"生成报告"},
+];
+const CYCLE = 80;            // 一轮 80s 后重置循环
+
+let state, T, fired, wallBase;
+function resetState(){
+  state = {hosts:[],exts:[],creds:[],cves:[],scanned:0,pkt:0,pps:0,
+           trend:Array(28).fill(0), spark:Array(40).fill(0)};
+  T = 0; fired = new Set(); wallBase = 9*3600+14*60+0; // 模拟 09:14:00 起
+  // 清 DOM
+  $("term").innerHTML=""; $("assetBody").innerHTML=""; $("findBody").innerHTML="";
+  document.querySelectorAll(".blip").forEach(b=>b.remove());
+  $("toasts").innerHTML="";
+  renderAll();
+}
+
+/* —— 离散事件 —— */
+function discoverHost(h){
+  state.hosts.push(h);
+  log("ok", `[OK] ${h.ip}:${h.port}/${h.proto}  ${h.ua}  <${h.resp}>`);
+  addBlip(h);
+  addAssetRow(h);
+  renderKPIs(); renderDonut(); renderBars(); renderRadarSub();
+}
+function discoverExt(e){
+  state.exts.push(e);
+  const tag = e.auth==="none" ? '<span class="am">[无鉴权!]</span>' : '';
+  log("c2", `[EXT] ${e.ip} 分机 ${e.exten} 存在 <${e.resp}> ${e.auth==="none"?"⚠ 无需鉴权":""}`);
+  addFindRow("分机", e.ip, e.exten, e.resp, "枚举", "var(--accent2)", e.auth==="none");
+  pingBlip("var(--accent2)");
+  renderKPIs();
+}
+function crackCred(c){
+  state.creds.push(c);
+  log("err", `[HIT] ${c.ip} 分机 ${c.user} 口令破解成功 → ${c.pwd}  (${c.source})`);
+  addFindRow("凭证", c.ip, c.user, c.pwd, c.source, "var(--err)", true);
+  pingBlip("var(--err)");
+  renderKPIs(); renderGauge();
+}
+function raiseCve(v){
+  state.cves.push(v);
+  log("err", `[VULN] ${v.ip} ${v.dev} 命中 ${v.cve} (${v.sev})`);
+  toast(`${v.sev}漏洞`, `${v.cve} · ${v.dev} @ ${v.ip}`);
+  pingBlip("var(--err)");
+  renderKPIs(); renderGauge();
+}
+
+/* —— 渲染：全部从 state 派生 —— */
+function renderAll(){renderKPIs();renderDonut();renderBars();renderTrend();renderGauge();renderRadarSub();renderSpark();}
+function renderKPIs(){
+  setNum("kScan", state.scanned); $("kScanBar").style.width = (state.scanned/254*100)+"%";
+  setNum("kHost", state.hosts.length); $("kHostBar").style.width = Math.min(100,state.hosts.length/6*100)+"%";
+  setNum("kExt", state.exts.length);   $("kExtBar").style.width  = Math.min(100,state.exts.length/5*100)+"%";
+  setNum("kCred",state.creds.length);  $("kCredBar").style.width = Math.min(100,state.creds.length/3*100)+"%";
+  setNum("kCve", state.cves.length);   $("kCveBar").style.width  = Math.min(100,state.cves.length/2*100)+"%";
+}
+function protoDist(){const d={UDP:0,TCP:0,TLS:0}; state.hosts.forEach(h=>d[h.proto]=(d[h.proto]||0)+1); return d;}
+function renderDonut(){
+  const d=protoDist(), tot=state.hosts.length||0;
+  const segs=document.querySelectorAll(".dseg");
+  const vals=[d.UDP,d.TCP,d.TLS]; let off=0;
+  segs.forEach((s,i)=>{
+    const pct = tot? vals[i]/tot*100 : 0;
+    s.setAttribute("stroke-dasharray", `${pct} ${100-pct}`);
+    s.style.strokeDashoffset = -off; off += pct;
+  });
+  $("donutTotal").textContent = tot;
+  $("lgUdp").textContent=d.UDP; $("lgTcp").textContent=d.TCP; $("lgTls").textContent=d.TLS;
+}
+function respDist(){
+  const b={"200":0,"401/407":0,"403/404":0,"其他":0};
+  state.hosts.forEach(h=>{const r=h.resp;
+    if(r.startsWith("200"))b["200"]++;
+    else if(r.startsWith("401")||r.startsWith("407"))b["401/407"]++;
+    else if(r.startsWith("403")||r.startsWith("404"))b["403/404"]++;
+    else b["其他"]++;});
+  return b;
+}
+function renderBars(){
+  const b=respDist(), cats=Object.keys(b), cols=["var(--ok)","var(--warn)","var(--accent2)","var(--err)"];
+  const W=360,H=220,pad=26, max=Math.max(3,...Object.values(b)), bw=46, gap=(W-2*pad-bw*cats.length)/(cats.length-1);
+  const svg=$("bars"); svg.innerHTML="";
+  for(let i=0;i<=3;i++){const y=pad+(H-2*pad)*i/3;
+    line(svg,pad,y,W-6,y,"gridln");
+    txt(svg,4,y+3,Math.round(max-max*i/3),"axis");}
+  cats.forEach((c,i)=>{
+    const x=pad+i*(bw+gap), v=b[c], h=(H-2*pad)*v/max;
+    const r=el("rect",{x,y:H-pad-h,width:bw,height:h,rx:4,fill:cols[i]});
+    r.style.transition="all .5s"; svg.appendChild(r);
+    txt(svg,x+bw/2,H-pad-h-5,v,"axis","middle");
+    txt(svg,x+bw/2,H-pad+13,c,"axis","middle");
+  });
+}
+function renderTrend(){
+  const W=760,H=210,pad=24, pts=state.trend, max=Math.max(8,...pts);
+  const svg=$("trend"); svg.innerHTML="";
+  const defs=el("defs"); defs.innerHTML=`<linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
+     <stop offset="0%" stop-color="rgba(0,229,208,.4)"/><stop offset="100%" stop-color="rgba(0,229,208,0)"/></linearGradient>`;
+  svg.appendChild(defs);
+  for(let i=0;i<=4;i++){const y=pad+(H-2*pad)*i/4; line(svg,pad,y,W,y,"gridln"); txt(svg,4,y+3,Math.round(max-max*i/4),"axis");}
+  const X=i=>pad+(W-pad)*i/(pts.length-1), Y=v=>H-pad-(H-2*pad)*v/max;
+  let d="",a=`M ${X(0)} ${H-pad} `;
+  pts.forEach((v,i)=>{const x=X(i),y=Y(v); d+=(i?"L":"M")+x+" "+y+" "; a+="L "+x+" "+y+" ";});
+  a+=`L ${X(pts.length-1)} ${H-pad} Z`;
+  svg.appendChild(el("path",{d:a,fill:"url(#tg)"}));
+  svg.appendChild(el("path",{d,fill:"none",stroke:"var(--accent)","stroke-width":2}));
+  const lx=X(pts.length-1),ly=Y(pts[pts.length-1]);
+  const c=el("circle",{cx:lx,cy:ly,r:3.5,fill:"var(--accent)"}); svg.appendChild(c);
+}
+function renderSpark(){
+  const W=300,H=56,pts=state.spark,max=Math.max(20,...pts);
+  const svg=$("spark"); svg.innerHTML="";
+  const X=i=>W*i/(pts.length-1), Y=v=>H-4-(H-8)*v/max;
+  let d=""; pts.forEach((v,i)=>{d+=(i?"L":"M")+X(i)+" "+Y(v)+" ";});
+  svg.appendChild(el("path",{d,fill:"none",stroke:"var(--accent2)","stroke-width":1.5}));
+}
+function renderGauge(){
+  // 威胁指数：主机*1 + 分机*1 + 凭证*8 + 漏洞*16，封顶 100，逻辑随发现升高
+  const score=Math.min(100, state.hosts.length*2 + state.exts.length*2 + state.creds.length*10 + state.cves.length*16);
+  const svg=$("gauge"); svg.innerHTML="";
+  const cx=100,cy=100,r=78;
+  const arc=(a0,a1,col,w)=>{
+    const p=(a,rr)=>[cx+rr*Math.cos(Math.PI*(180-a)/180), cy-rr*Math.sin(Math.PI*(180-a)/180)];
+    const [x0,y0]=p(a0,r),[x1,y1]=p(a1,r);
+    const large=(a1-a0)>180?1:0;
+    return el("path",{d:`M ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1}`,fill:"none",stroke:col,"stroke-width":w,"stroke-linecap":"round"});
+  };
+  svg.appendChild(arc(0,180,"var(--input-bg)",10));
+  const col = score<33?"var(--ok)":score<66?"var(--warn)":"var(--err)";
+  svg.appendChild(arc(0,180*score/100,col,10));
+  // 指针
+  const ang=Math.PI*(180-180*score/100)/180;
+  svg.appendChild(el("line",{x1:cx,y1:cy,x2:cx+62*Math.cos(ang),y2:cy-62*Math.sin(ang),stroke:col,"stroke-width":3,"stroke-linecap":"round"}));
+  svg.appendChild(el("circle",{cx,cy,r:5,fill:col}));
+  $("gaugeVal").textContent=score; $("gaugeVal").style.color=col;
+  $("gaugeLab").textContent = score<33?"安全":score<66?"存在风险":"高危";
+  $("gaugeLab").style.color = col;
+}
+function renderRadarSub(){ $("radarSub").textContent = state.hosts.length+" 目标"; }
+
+/* —— DOM 辅助 —— */
+function addAssetRow(h){
+  const alive=h.resp.startsWith("200")||h.resp.startsWith("401")||h.resp.startsWith("407");
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td>${h.ip}</td><td>${h.port}</td><td>${h.proto}</td>
+    <td class="cy">${h.ua}</td><td>${h.resp}</td>
+    <td><span class="tag ${alive?'ok':'warn'}">${alive?'存活':'响应'}</span></td>`;
+  $("assetBody").prepend(tr);
+  $("assetSub").textContent = state.hosts.length;
+}
+function addFindRow(kind,ip,who,val,src,col,hot){
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td style="color:${col}">${kind}</td><td>${ip}</td>
+    <td class="cy">${who}</td><td class="${kind==='凭证'?'rd':''}">${val}</td><td>${src}</td>`;
+  $("findBody").prepend(tr);
+  $("findSub").textContent = state.exts.length+state.creds.length;
+}
+let radarBlips=[];
+function addBlip(h){
+  const idx=state.hosts.length-1, ang=(idx*61)%360, rr=0.35+((idx*7)%55)/100;
+  const r=$("radar").clientWidth/2;
+  const b=document.createElement("div"); b.className="blip";
+  b.style.left=(50+45*rr*Math.cos(ang*Math.PI/180))+"%";
+  b.style.top=(50-45*rr*Math.sin(ang*Math.PI/180))+"%";
+  b.style.color = h.resp.startsWith("200")?"var(--accent)":"var(--warn)";
+  $("radar").appendChild(b); radarBlips.push(b);
+}
+function pingBlip(col){
+  if(!radarBlips.length) return;
+  const b=radarBlips[Math.floor((state.exts.length+state.creds.length)%radarBlips.length)];
+  b.style.color=col; b.style.animation="none"; void b.offsetWidth; b.style.animation="pop .5s ease";
+}
+function log(cls,text){
+  const t=$("term"); const d=document.createElement("div"); d.className="ln";
+  d.innerHTML=`<span class="t">${clockStr()}</span> <span class="${cls}">${text}</span>`;
+  t.appendChild(d); t.scrollTop=t.scrollHeight;
+  while(t.children.length>40) t.removeChild(t.firstChild);
+}
+function toast(title,body){
+  const h=$("toasts"); const d=document.createElement("div"); d.className="toast";
+  d.innerHTML=`<div class="th">⚠ ${title}</div><div class="tb">${body}</div>`;
+  h.appendChild(d);
+  setTimeout(()=>{d.style.transition="opacity .5s,transform .5s";d.style.opacity="0";d.style.transform="translateX(40px)";
+    setTimeout(()=>d.remove(),500);},4200);
+}
+
+/* —— 数字滚动 —— */
+const cur={};
+function setNum(id,target){
+  cur[id]=cur[id]||0;
+  if(cur[id]===target){$(id).textContent=target;return;}
+}
+function animNums(){
+  ["kScan","kHost","kExt","kCred","kCve"].forEach(id=>{
+    const target = {kScan:state.scanned,kHost:state.hosts.length,kExt:state.exts.length,kCred:state.creds.length,kCve:state.cves.length}[id];
+    cur[id]=cur[id]||0;
+    if(cur[id]!==target){
+      const diff=target-cur[id];
+      cur[id]+=Math.sign(diff)*Math.max(1,Math.ceil(Math.abs(diff)/6));
+      if((diff>0&&cur[id]>target)||(diff<0&&cur[id]<target))cur[id]=target;
+      $(id).textContent=cur[id];
+    }
+  });
+}
+
+/* —— SVG 小工具 —— */
+function el(tag,attrs){const e=document.createElementNS(NS,tag);for(const k in (attrs||{}))e.setAttribute(k,attrs[k]);return e;}
+function line(svg,x1,y1,x2,y2,cls){const l=el("line",{x1,y1,x2,y2});l.setAttribute("class",cls);svg.appendChild(l);}
+function txt(svg,x,y,t,cls,anchor){const e=el("text",{x,y});e.setAttribute("class",cls);if(anchor)e.setAttribute("text-anchor",anchor);e.textContent=t;svg.appendChild(e);}
+
+/* —— 时钟 —— */
+function clockStr(){const s=Math.floor(wallBase+T)%86400;const h=String(Math.floor(s/3600)).padStart(2,"0");
+  const m=String(Math.floor(s%3600/60)).padStart(2,"0");const ss=String(s%60).padStart(2,"0");return `${h}:${m}:${ss}`;}
+
+/* —— 阶段 —— */
+function currentPhase(){ for(const p of PHASES){ if(T>=p.s&&T<p.e) return p; } return null; }
+function renderPhase(){
+  const p=currentPhase();
+  document.querySelectorAll(".ph").forEach(el=>{
+    const k=el.dataset.k, ph=PHASES.find(x=>x.k===k);
+    el.classList.remove("active","done");
+    if(p&&k===p.k) el.classList.add("active");
+    else if(ph && T>=ph.e) el.classList.add("done");
+  });
+  $("phaseChip").textContent = p? p.label : (T<2?"初始化":"审计完成");
+}
+
+/* —— 主循环 —— */
+const TICK=0.1;   // 100ms
+function tick(){
+  T+=TICK; if(T>=CYCLE){ resetState(); return; }
+  $("clock").textContent=clockStr();
+  renderPhase();
+
+  // 扫描计数（仅扫描阶段推进），逻辑：09:14 起约每秒探测 ~10 个地址
+  const sp=PHASES[0];
+  if(T>=sp.s && T<sp.e){
+    state.scanned=Math.min(254, Math.round((T-sp.s)/(sp.e-sp.s)*254));
+    const ip=SUBNET+Math.min(254,state.scanned+1);
+    const spin="|/-\\"[Math.floor(T*10)%4];
+    $("scanline").innerHTML=`[${spin}] Scanning <span class="ip">${ip}</span>:5060/UDP ...`;
+  } else if(T>=sp.e && state.scanned<254){ state.scanned=254; $("scanline").innerHTML=`<span class="ok">[✓] 扫描完成：探测 254 个地址，发现 ${state.hosts.length} 台主机</span>`; }
+
+  // 吞吐：扫描阶段高，破解阶段中，其它低（逻辑相关）
+  const ph=currentPhase();
+  let base = ph? ({scan:90,enum:40,crack:55,vuln:20,report:8}[ph.k]||10) : 5;
+  state.pps = Math.max(0, Math.round(base + Math.sin(T*3)*base*0.25 + (Math.floor(T*7)%5-2)*3));
+  state.pkt += Math.round(state.pps*TICK);
+  $("ppsVal").textContent=state.pps; $("pktTotal").textContent="累计 "+state.pkt.toLocaleString();
+  state.spark.push(state.pps); state.spark.shift();
+
+  // 触发脚本事件（按时间，仅一次）
+  fireAt(SCRIPT_HOSTS, "h", discoverHost);
+  fireAt(SCRIPT_EXTS,  "e", discoverExt);
+  fireAt(SCRIPT_CREDS, "c", crackCred);
+  fireAt(SCRIPT_CVES,  "v", raiseCve);
+
+  // 报告阶段提示
+  if(ph&&ph.k==="report" && !fired.has("report")){fired.add("report");
+    log("ok",`[REPORT] 审计完成 · 主机 ${state.hosts.length} · 分机 ${state.exts.length} · 凭证 ${state.creds.length} · 漏洞 ${state.cves.length}`);}
+
+  // 持续刷新（每秒采样一次趋势 + 重画动态图）
+  if(Math.abs((T*10)%10)<0.5){
+    state.trend.push(state.hosts.length+state.exts.length+state.creds.length); state.trend.shift();
+    renderTrend();
+  }
+  animNums(); renderKPIs(); renderSpark(); renderGauge();
+}
+function fireAt(arr,prefix,fn){
+  arr.forEach((x,i)=>{const key=prefix+i; if(T>=x.t && !fired.has(key)){fired.add(key); fn(x);}});
+}
+
+/* 启动 */
+resetState();
+renderTrend(); renderSpark(); renderGauge();
+setInterval(tick, TICK*1000);
+</script>
+</body>
+</html>

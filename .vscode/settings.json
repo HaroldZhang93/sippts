@@ -2,5 +2,9 @@
     "python.analysis.extraPaths": [
         "./src/sippts",
         "./src/sippts/gui"
+    ],
+    "cursorpyright.analysis.extraPaths": [
+        "./src/sippts",
+        "./src/sippts/gui"
     ]
 }

@@ -21,7 +21,8 @@ if __name__ == "__main__":
         'websocket-client',
         'rel',
         'resource',
-        'PyQt6'
+        'PyQt5',
+        'PyQtChart'
       ],
       extra_requires=[
         'cursor',

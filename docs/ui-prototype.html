@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMS 安全测试平台 — UI 原型（暗蓝 HUD · 赛博青）</title>
+<style>
+  /* ============ Design Tokens（与将落地的 QSS 同色板） ============ */
+  :root{
+    --bg:#0A1018; --bg2:#0D1726; --panel:#111E2E; --panel-border:#1F3D55;
+    --accent:#00E5D0; --accent2:#00B4D8; --accent-hi:#2FF3E0;
+    --text:#E2EDF4; --muted:#7E97AC;
+    --input-bg:#0D1A28; --input-border:#244157;
+    --term-bg:#060C12; --term-fg:#CFE8E5;
+    --ok:#3DDC97; --warn:#FFB703; --err:#FF5C72;
+    --ui-font:"Microsoft YaHei UI","Segoe UI",-apple-system,sans-serif;
+    --mono-font:"Consolas","JetBrains Mono","Courier New",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(0,180,216,.10), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(0,229,208,.06), transparent 55%),
+      var(--bg);
+    color:var(--text); font-family:var(--ui-font); font-size:14px;
+    display:flex; justify-content:center; padding:28px 18px;
+  }
+  .app{
+    width:1180px; max-width:100%; background:var(--bg2);
+    border:1px solid var(--panel-border); border-radius:10px; overflow:hidden;
+    box-shadow:0 18px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(0,229,208,.04) inset;
+  }
+
+  /* ===== HUD 顶栏 ===== */
+  .hud{display:flex;align-items:center;gap:16px;padding:14px 20px;position:relative;
+       background:linear-gradient(90deg,#0C1A2B,#0B1626 60%,#0A1320);
+       border-bottom:1px solid var(--panel-border);}
+  .hud::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+       background:linear-gradient(90deg,transparent,var(--accent) 20%,var(--accent2) 60%,transparent);opacity:.7;}
+  .logo{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+       background:linear-gradient(135deg,var(--accent),var(--accent2));
+       color:#042022;font-weight:800;font-size:16px;box-shadow:0 0 14px rgba(0,229,208,.55);}
+  .title{font-size:17px;font-weight:700;letter-spacing:.5px;}
+  .title .sub{color:var(--accent);font-weight:600;}
+  .hud .spacer{flex:1;}
+  .clock{font-family:var(--mono-font);color:var(--accent2);font-size:13px;letter-spacing:1px;}
+  .status{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12.5px;
+          font-family:var(--mono-font);letter-spacing:1px;}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok);animation:pulse 1.8s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  /* ===== Tab 条 ===== */
+  .tabbar{display:flex;gap:2px;padding:0 14px;background:var(--bg);
+          border-bottom:1px solid var(--panel-border);overflow-x:auto;}
+  .tab{padding:12px 16px;color:var(--muted);font-size:13px;white-space:nowrap;cursor:pointer;
+       border-bottom:2px solid transparent;transition:color .15s,border-color .15s;}
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent);text-shadow:0 0 12px rgba(0,229,208,.5);}
+
+  .content{padding:18px;}
+  .view{display:none;}
+  .view.active{display:block;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  /* ===== 通用卡片 / 面板 ===== */
+  .card{position:relative;border:1px solid var(--panel-border);border-radius:8px;
+        background:linear-gradient(180deg,rgba(0,229,208,.025),transparent 40%),var(--panel);padding:16px;}
+  .card .ct{color:var(--accent);font-size:12.5px;font-weight:600;letter-spacing:.5px;margin-bottom:12px;}
+  .card .ct::before{content:"▌ ";}
+  .row{display:grid;gap:14px;margin-bottom:14px;}
+  .c4{grid-template-columns:repeat(4,1fr);}
+  .c2{grid-template-columns:1fr 1fr;}
+  .c21{grid-template-columns:2fr 1fr;}
+
+  /* ===== KPI 卡 ===== */
+  .kpi .ct{margin-bottom:6px;color:var(--muted);font-weight:500;}
+  .kpi .ct::before{content:"";}
+  .kpi .num{font-size:34px;font-weight:700;font-family:var(--mono-font);line-height:1;}
+  .kpi .num.cy{color:var(--accent);} .kpi .num.gr{color:var(--ok);}
+  .kpi .num.rd{color:var(--err);} .kpi .num.am{color:var(--warn);}
+  .kpi .foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px;}
+  .delta{font-size:11.5px;font-family:var(--mono-font);}
+  .delta.up{color:var(--ok);} .delta.dn{color:var(--err);}
+  .spark{height:26px;}
+
+  /* ===== 雷达 ===== */
+  .radar{position:relative;width:220px;height:220px;border-radius:50%;margin:6px auto 0;overflow:hidden;
+         background:radial-gradient(circle,rgba(0,229,208,.07),transparent 70%);border:1px solid var(--panel-border);}
+  .ring{position:absolute;border:1px solid rgba(31,61,85,.9);border-radius:50%;top:50%;left:50%;transform:translate(-50%,-50%);}
+  .cross{position:absolute;background:rgba(31,61,85,.9);}
+  .cross.h{left:0;right:0;top:50%;height:1px;} .cross.v{top:0;bottom:0;left:50%;width:1px;}
+  .sweep{position:absolute;inset:0;border-radius:50%;transform-origin:center;
+         background:conic-gradient(from 0deg,rgba(0,229,208,.5),rgba(0,229,208,.12) 40deg,transparent 60deg);
+         animation:spin 3.2s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .blip{position:absolute;width:9px;height:9px;border-radius:50%;background:var(--accent);
+        box-shadow:0 0 12px var(--accent);transform:translate(-50%,-50%);opacity:0;animation:blip 3.2s infinite;}
+  @keyframes blip{0%,100%{opacity:0;}8%{opacity:1;}40%{opacity:.25;}}
+
+  /* ===== 环形图 ===== */
+  .donut-wrap{display:flex;align-items:center;gap:18px;}
+  .legend{font-size:12.5px;line-height:2;}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:8px;vertical-align:-1px;}
+  .legend .v{color:var(--muted);font-family:var(--mono-font);margin-left:6px;}
+
+  /* ===== 折线/面积图 ===== */
+  .chart{width:100%;height:170px;}
+  .axis{fill:var(--muted);font-size:10px;font-family:var(--mono-font);}
+  .gridln{stroke:rgba(31,61,85,.6);stroke-width:1;}
+  .line{fill:none;stroke:var(--accent);stroke-width:2;filter:drop-shadow(0 0 6px rgba(0,229,208,.5));}
+  .endpt{fill:var(--accent);filter:drop-shadow(0 0 6px var(--accent));}
+
+  /* ===== 柱状图 ===== */
+  .bars{display:flex;align-items:flex-end;gap:14px;height:170px;padding-top:8px;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;height:100%;}
+  .bar{width:70%;border-radius:4px 4px 0 0;height:0;transition:height 1.1s cubic-bezier(.2,.8,.2,1);
+       background:linear-gradient(180deg,var(--accent),var(--accent2));box-shadow:0 0 12px rgba(0,229,208,.3);}
+  .bar.am{background:linear-gradient(180deg,#FFD166,var(--warn));box-shadow:0 0 12px rgba(255,183,3,.3);}
+  .bar.rd{background:linear-gradient(180deg,#FF7A8A,var(--err));box-shadow:0 0 12px rgba(255,92,114,.3);}
+  .bar-lbl{font-size:11px;color:var(--muted);} .bar-val{font-size:12px;font-family:var(--mono-font);color:var(--text);}
+
+  /* ===== 表格 ===== */
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{text-align:left;color:var(--accent2);font-weight:600;font-size:11.5px;letter-spacing:.5px;
+           padding:9px 10px;border-bottom:1px solid var(--panel-border);text-transform:uppercase;}
+  tbody td{padding:9px 10px;border-bottom:1px solid rgba(31,61,85,.45);font-family:var(--mono-font);}
+  tbody tr{opacity:0;transform:translateX(-8px);animation:rowin .35s forwards;}
+  tbody tr:hover{background:rgba(0,229,208,.05);}
+  @keyframes rowin{to{opacity:1;transform:none;}}
+  .badge{padding:2px 9px;border-radius:20px;font-size:11px;font-family:var(--ui-font);}
+  .badge.ok{color:var(--ok);background:rgba(61,220,151,.12);border:1px solid rgba(61,220,151,.4);}
+  .badge.warn{color:var(--warn);background:rgba(255,183,3,.12);border:1px solid rgba(255,183,3,.4);}
+  .badge.err{color:var(--err);background:rgba(255,92,114,.12);border:1px solid rgba(255,92,114,.4);}
+  td .cy{color:var(--accent);}
+
+  /* ===== 表单（scan/dump） ===== */
+  .panel{position:relative;border:1px solid var(--panel-border);border-radius:8px;margin-bottom:18px;
+         background:linear-gradient(180deg,rgba(0,229,208,.025),transparent 40%),var(--panel);padding:20px 18px 18px;}
+  .panel>.lg{position:absolute;top:-9px;left:14px;background:var(--bg2);padding:0 8px;
+             color:var(--accent);font-size:12.5px;font-weight:600;}
+  .panel>.lg::before{content:"▌ ";}
+  .grid{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:12px 14px;align-items:center;}
+  label.fl{color:var(--muted);font-size:13px;text-align:right;}
+  .full{grid-column:2/5;}
+  input.fi,select.fs{width:100%;background:var(--input-bg);color:var(--text);border:1px solid var(--input-border);
+       border-radius:5px;padding:8px 10px;font-size:13px;outline:none;transition:border-color .15s,box-shadow .15s;}
+  input.fi::placeholder{color:#48627a;}
+  input.fi:focus,select.fs:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,229,208,.14);}
+  select.fs{appearance:none;
+    background-image:linear-gradient(45deg,transparent 50%,var(--accent) 50%),linear-gradient(135deg,var(--accent) 50%,transparent 50%);
+    background-position:calc(100% - 16px) 16px,calc(100% - 11px) 16px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;}
+  .filerow{display:flex;gap:8px;} .filerow input{flex:1;}
+  .check{display:flex;align-items:center;gap:8px;font-size:13px;} .check input{accent-color:var(--accent);width:16px;height:16px;}
+
+  .btnrow{display:flex;gap:12px;margin:4px 0 16px;}
+  .btn{padding:9px 22px;border-radius:6px;font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid transparent;
+       letter-spacing:.5px;transition:all .15s;font-family:var(--ui-font);}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#042022;border:none;box-shadow:0 0 16px rgba(0,229,208,.35);}
+  .btn.primary:hover{background:var(--accent-hi);box-shadow:0 0 22px rgba(0,229,208,.6);}
+  .btn.danger{background:transparent;color:var(--err);border:1px solid var(--err);}
+  .btn.danger:hover{background:rgba(255,92,114,.12);}
+  .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--input-border);}
+  .btn.ghost:hover{border-color:var(--accent);}
+  .btn.small{padding:8px 14px;font-weight:500;}
+
+  /* ===== 终端 ===== */
+  .term-wrap{position:relative;}
+  .term-label{position:absolute;top:-9px;left:14px;background:var(--bg2);padding:0 8px;color:var(--muted);font-size:12px;font-family:var(--mono-font);z-index:1;}
+  .term{background:var(--term-bg);border:1px solid var(--panel-border);border-radius:8px;padding:14px 16px;
+        font-family:var(--mono-font);font-size:13px;line-height:1.7;color:var(--term-fg);
+        min-height:170px;max-height:240px;overflow:auto;box-shadow:inset 0 0 30px rgba(0,0,0,.6);}
+  .term .ok{color:var(--ok);} .term .err{color:var(--err);} .term .warn{color:var(--warn);}
+  .term .cy{color:var(--accent);} .term .mut{color:var(--muted);} .term .prompt{color:var(--accent2);}
+  .cursor{display:inline-block;width:8px;height:15px;background:var(--accent);vertical-align:-2px;animation:blink 1s step-end infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  .note{color:var(--muted);font-size:12px;margin-top:8px;text-align:center;}
+
+  /* 进度条 */
+  .pbar{height:6px;border-radius:4px;background:var(--input-bg);overflow:hidden;margin-top:10px;border:1px solid var(--input-border);}
+  .pbar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent2),var(--accent));
+          box-shadow:0 0 10px var(--accent);transition:width .4s;}
+  .term::-webkit-scrollbar,.tabbar::-webkit-scrollbar{height:8px;width:8px;}
+  .term::-webkit-scrollbar-thumb{background:var(--input-border);border-radius:4px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="hud">
+    <div class="logo">IM</div>
+    <div class="title">IMS <span class="sub">安全测试平台</span></div>
+    <div class="spacer"></div>
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="status"><span class="dot"></span> ONLINE · SIP/RTP</div>
+  </div>
+
+  <div class="tabbar">
+    <div class="tab active" data-v="dash">总览</div>
+    <div class="tab" data-v="scan">SIP扫描</div>
+    <div class="tab" data-v="dump">数据分析</div>
+    <div class="tab">分机枚举</div><div class="tab">密码破解</div><div class="tab">压力测试</div>
+    <div class="tab">Digest泄露</div><div class="tab">离线破解</div><div class="tab">消息伪造</div>
+    <div class="tab">SIP嗅探</div><div class="tab">RTP Bleed</div><div class="tab">RTP注入</div>
+    <div class="tab">RTP劫持</div><div class="tab">ARP欺骗</div>
+  </div>
+
+  <div class="content">
+
+    <!-- ===================== 总览 Dashboard ===================== -->
+    <div class="view active" id="dash">
+      <!-- KPI -->
+      <div class="row c4">
+        <div class="card kpi"><div class="ct">扫描主机</div>
+          <div class="num cy" data-cnt="2048">0</div>
+          <div class="foot"><span class="delta up">▲ 12.4%</span>
+            <svg class="spark" width="80" viewBox="0 0 80 26"><polyline fill="none" stroke="var(--accent)" stroke-width="1.5" points="0,20 12,16 24,18 36,10 48,13 60,6 72,9 80,4"/></svg></div>
+        </div>
+        <div class="card kpi"><div class="ct">存活设备</div>
+          <div class="num gr" data-cnt="317">0</div>
+          <div class="foot"><span class="delta up">▲ 8</span>
+            <svg class="spark" width="80" viewBox="0 0 80 26"><polyline fill="none" stroke="var(--ok)" stroke-width="1.5" points="0,18 12,14 24,15 36,12 48,8 60,10 72,5 80,6"/></svg></div>
+        </div>
+        <div class="card kpi"><div class="ct">发现漏洞</div>
+          <div class="num rd" data-cnt="23">0</div>
+          <div class="foot"><span class="delta dn">▲ 3</span>
+            <svg class="spark" width="80" viewBox="0 0 80 26"><polyline fill="none" stroke="var(--err)" stroke-width="1.5" points="0,20 12,18 24,14 36,15 48,9 60,12 72,7 80,5"/></svg></div>
+        </div>
+        <div class="card kpi"><div class="ct">平均响应 (ms)</div>
+          <div class="num am" data-cnt="42">0</div>
+          <div class="foot"><span class="delta up">▼ 6ms</span>
+            <svg class="spark" width="80" viewBox="0 0 80 26"><polyline fill="none" stroke="var(--warn)" stroke-width="1.5" points="0,8 12,12 24,9 36,14 48,11 60,16 72,13 80,18"/></svg></div>
+        </div>
+      </div>
+
+      <!-- 雷达 + 环形图 -->
+      <div class="row c2">
+        <div class="card"><div class="ct">实时探测雷达</div>
+          <div class="radar" id="radar">
+            <div class="ring" style="width:75%;height:75%"></div>
+            <div class="ring" style="width:50%;height:50%"></div>
+            <div class="ring" style="width:25%;height:25%"></div>
+            <div class="cross h"></div><div class="cross v"></div>
+            <div class="sweep"></div>
+          </div>
+        </div>
+        <div class="card"><div class="ct">协议分布</div>
+          <div class="donut-wrap">
+            <svg width="150" height="150" viewBox="0 0 42 42">
+              <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--input-bg)" stroke-width="6"/>
+              <circle class="dseg" cx="21" cy="21" r="15.9" fill="none" stroke="var(--accent)"   stroke-width="6" stroke-dasharray="0 100" data-val="58" transform="rotate(-90 21 21)"/>
+              <circle class="dseg" cx="21" cy="21" r="15.9" fill="none" stroke="var(--accent2)"  stroke-width="6" stroke-dasharray="0 100" data-val="27" data-off="58" transform="rotate(-90 21 21)"/>
+              <circle class="dseg" cx="21" cy="21" r="15.9" fill="none" stroke="var(--warn)"     stroke-width="6" stroke-dasharray="0 100" data-val="15" data-off="85" transform="rotate(-90 21 21)"/>
+              <text x="21" y="20.5" text-anchor="middle" fill="var(--text)" font-size="6" font-family="var(--mono-font)">317</text>
+              <text x="21" y="26" text-anchor="middle" fill="var(--muted)" font-size="3">设备</text>
+            </svg>
+            <div class="legend">
+              <div><i style="background:var(--accent)"></i>UDP <span class="v">58%</span></div>
+              <div><i style="background:var(--accent2)"></i>TCP <span class="v">27%</span></div>
+              <div><i style="background:var(--warn)"></i>TLS <span class="v">15%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 趋势折线 + 漏洞柱状 -->
+      <div class="row c21">
+        <div class="card"><div class="ct">主机发现趋势（实时）</div>
+          <svg class="chart" id="trend" viewBox="0 0 600 170" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="card"><div class="ct">漏洞类型分布</div>
+          <div class="bars" id="bars">
+            <div class="bar-col"><span class="bar-val">9</span><div class="bar rd" data-h="90"></div><span class="bar-lbl">RTP Bleed</span></div>
+            <div class="bar-col"><span class="bar-val">6</span><div class="bar am" data-h="60"></div><span class="bar-lbl">Digest泄露</span></div>
+            <div class="bar-col"><span class="bar-val">5</span><div class="bar" data-h="52"></div><span class="bar-lbl">弱口令</span></div>
+            <div class="bar-col"><span class="bar-val">3</span><div class="bar am" data-h="34"></div><span class="bar-lbl">无鉴权INVITE</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 结果表 -->
+      <div class="card"><div class="ct">扫描结果（实时刷新）</div>
+        <table>
+          <thead><tr><th>IP 地址</th><th>端口</th><th>协议</th><th>设备指纹</th><th>鉴权</th><th>风险</th><th>状态</th></tr></thead>
+          <tbody id="rtab"></tbody>
+        </table>
+      </div>
+      <div class="note">演示用动态效果：数字滚动 · 雷达扫描 · 协议环形图 · 实时折线/柱状图 · 表格逐行刷新（落地为 PyQt 时可用 QtCharts / QPainter 实现，或保留为状态卡片+表格）</div>
+    </div>
+
+    <!-- ===================== SIP扫描 ===================== -->
+    <div class="view" id="scan">
+      <div class="panel"><span class="lg">目标参数</span>
+        <div class="grid">
+          <label class="fl">目标 IP/网段</label><input class="fi full" value="192.168.100.1-192.168.100.255">
+          <label class="fl">端口</label><input class="fi" value="5060">
+          <label class="fl">协议</label><select class="fs"><option>UDP</option><option>TCP</option><option>TLS</option><option>ALL</option></select>
+          <label class="fl">IP 列表文件</label><div class="filerow full"><input class="fi" placeholder="包含多个 IP 或网段的文件路径"><button class="btn ghost small">选择</button></div>
+          <label class="fl">扫描方法</label><select class="fs"><option>options</option><option>invite</option><option>register</option></select>
+          <label class="fl">线程数</label><input class="fi" value="200">
+        </div>
+      </div>
+      <div class="btnrow">
+        <button class="btn primary" id="scanBtn">▶ 开始扫描</button>
+        <button class="btn danger">■ 停止</button>
+        <button class="btn ghost" id="clrBtn">清空输出</button>
+      </div>
+      <div class="pbar"><i id="scanProg"></i></div>
+      <div class="term-wrap" style="margin-top:16px;">
+        <span class="term-label">// OUTPUT</span>
+        <div class="term" id="scanTerm"><span class="prompt">&gt;</span> <span class="cursor"></span></div>
+      </div>
+      <div class="note">点击「▶ 开始扫描」查看终端打字 + 进度条动态效果</div>
+    </div>
+
+    <!-- ===================== 数据分析 ===================== -->
+    <div class="view" id="dump">
+      <div class="panel"><span class="lg">PCAP 数据分析</span>
+        <div class="grid">
+          <label class="fl">PCAP 文件</label><div class="filerow full"><input class="fi" value="snifftest.pcap"><button class="btn ghost small">选择</button></div>
+          <label class="fl">输出文件</label><div class="filerow full"><input class="fi" placeholder="分析结果保存路径（可选）"><button class="btn ghost small">选择</button></div>
+        </div>
+      </div>
+      <div class="btnrow"><button class="btn primary">▶ 开始分析</button><button class="btn danger">■ 停止</button></div>
+      <div class="term-wrap"><span class="term-label">// OUTPUT</span>
+        <div class="term">
+<div><span class="prompt">&gt;</span> <span class="mut">parsing snifftest.pcap ...</span></div>
+<div><span class="cy">[*]</span> 1284 packets · 37 SIP dialogs</div>
+<div><span class="ok">[OK]</span> digest auth found: user=<span class="cy">1001</span> realm=<span class="cy">asterisk</span></div>
+<div><span class="ok">[OK]</span> digest auth found: user=<span class="cy">1002</span> realm=<span class="cy">asterisk</span></div>
+<div><span class="mut">--- 2 credentials extracted ---</span></div>
+<div><span class="prompt">&gt;</span> <span class="cursor"></span></div>
+        </div>
+      </div>
+      <div class="note">简单表单示例（参照 dump_tab）</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ===== 时钟 ===== */
+function tick(){const d=new Date();const p=n=>String(n).padStart(2,'0');
+  document.getElementById('clock').textContent=`${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
+tick();setInterval(tick,1000);
+
+/* ===== Tab 切换 ===== */
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');
+  const v=t.dataset.v;if(v){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+    document.getElementById(v).classList.add('active');}
+}));
+
+/* ===== KPI 数字滚动 ===== */
+function countUp(el){const target=+el.dataset.cnt;const dur=1400;const t0=performance.now();
+  (function step(now){const p=Math.min(1,(now-t0)/dur);const e=1-Math.pow(1-p,3);
+    el.textContent=Math.round(target*e).toLocaleString();if(p<1)requestAnimationFrame(step);})(t0);}
+document.querySelectorAll('.num[data-cnt]').forEach(countUp);
+/* 让 KPI 持续“跳动”更鲜活 */
+setInterval(()=>{document.querySelectorAll('.num[data-cnt]').forEach(el=>{
+  const cur=+el.textContent.replace(/,/g,'');const nv=cur+Math.round((Math.random()-.3)*3);
+  if(nv>0)el.textContent=nv.toLocaleString();});},2200);
+
+/* ===== 雷达 blip ===== */
+const radar=document.getElementById('radar');
+[[30,35,0],[68,55,.6],[48,72,1.3],[58,28,1.9],[78,68,2.5]].forEach(([x,y,delay])=>{
+  const b=document.createElement('div');b.className='blip';
+  b.style.left=x+'%';b.style.top=y+'%';b.style.animationDelay=delay+'s';radar.appendChild(b);});
+
+/* ===== 环形图绘制 =====
+   r=15.9 → 周长≈100，dasharray="段值 余量"，dashoffset=-累计起点 用于拼接各段 */
+document.querySelectorAll('.dseg').forEach(s=>{
+  const off=+(s.dataset.off||0);
+  s.setAttribute('stroke-dasharray',`0 100`);            // 初始为 0，便于过渡
+  s.style.strokeDashoffset=-off;
+  s.style.transition='stroke-dasharray 1.1s ease';
+});
+setTimeout(()=>document.querySelectorAll('.dseg').forEach(s=>{
+  const v=+s.dataset.val;
+  s.setAttribute('stroke-dasharray',`${v} ${100-v}`);
+}),300);
+
+/* ===== 柱状图 ===== */
+function drawBars(){document.querySelectorAll('#bars .bar').forEach(b=>{b.style.height=b.dataset.h+'%';});}
+setTimeout(drawBars,300);
+setInterval(()=>{document.querySelectorAll('#bars .bar-col').forEach(col=>{
+  const bar=col.querySelector('.bar'),val=col.querySelector('.bar-val');
+  const h=Math.max(20,Math.min(100,(+bar.dataset.h)+(Math.random()-.5)*20));
+  bar.dataset.h=h.toFixed(0);bar.style.height=h+'%';val.textContent=Math.round(h/10);});},2600);
+
+/* ===== 折线/面积图（实时） ===== */
+const svgNS='http://www.w3.org/2000/svg';const trend=document.getElementById('trend');
+let pts=Array.from({length:24},()=>20+Math.random()*60);
+function drawTrend(){
+  const W=600,H=170,pad=24;trend.innerHTML='';
+  // 网格 + Y 轴
+  for(let i=0;i<=4;i++){const y=pad+(H-2*pad)*i/4;
+    const l=document.createElementNS(svgNS,'line');l.setAttribute('x1',pad);l.setAttribute('x2',W);
+    l.setAttribute('y1',y);l.setAttribute('y2',y);l.setAttribute('class','gridln');trend.appendChild(l);
+    const tx=document.createElementNS(svgNS,'text');tx.setAttribute('x',2);tx.setAttribute('y',y+3);
+    tx.setAttribute('class','axis');tx.textContent=Math.round(100-i*25);trend.appendChild(tx);}
+  const max=Math.max(...pts,80);
+  const X=i=>pad+(W-pad)*i/(pts.length-1);const Y=v=>H-pad-(H-2*pad)*v/max;
+  let d='',area=`M ${X(0)} ${H-pad} `;
+  pts.forEach((v,i)=>{const x=X(i),y=Y(v);d+=(i?'L':'M')+x+' '+y+' ';area+='L '+x+' '+y+' ';});
+  area+=`L ${X(pts.length-1)} ${H-pad} Z`;
+  // 渐变面积
+  const defs=document.createElementNS(svgNS,'defs');
+  defs.innerHTML=`<linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+     <stop offset="0%" stop-color="rgba(0,229,208,.35)"/><stop offset="100%" stop-color="rgba(0,229,208,0)"/></linearGradient>`;
+  trend.appendChild(defs);
+  const ar=document.createElementNS(svgNS,'path');ar.setAttribute('d',area);ar.setAttribute('fill','url(#ag)');trend.appendChild(ar);
+  const ln=document.createElementNS(svgNS,'path');ln.setAttribute('d',d);ln.setAttribute('class','line');
+  trend.appendChild(ln);
+  // 绘制动画
+  const len=ln.getTotalLength();ln.style.strokeDasharray=len;ln.style.strokeDashoffset=len;
+  ln.getBoundingClientRect();ln.style.transition='stroke-dashoffset 1s ease';ln.style.strokeDashoffset=0;
+  // 末端发光点
+  const lx=X(pts.length-1),ly=Y(pts[pts.length-1]);
+  const c=document.createElementNS(svgNS,'circle');c.setAttribute('cx',lx);c.setAttribute('cy',ly);
+  c.setAttribute('r',4);c.setAttribute('class','endpt');trend.appendChild(c);
+  const cp=document.createElementNS(svgNS,'circle');cp.setAttribute('cx',lx);cp.setAttribute('cy',ly);
+  cp.setAttribute('r',4);cp.setAttribute('fill','none');cp.setAttribute('stroke','var(--accent)');
+  cp.innerHTML='<animate attributeName="r" from="4" to="12" dur="1.4s" repeatCount="indefinite"/><animate attributeName="opacity" from=".8" to="0" dur="1.4s" repeatCount="indefinite"/>';
+  trend.appendChild(cp);
+}
+drawTrend();
+setInterval(()=>{pts.push(20+Math.random()*60);pts.shift();drawTrend();},2200);
+
+/* ===== 结果表逐行刷新 ===== */
+const sample=[
+  ['192.168.100.10','5060','UDP','<span class="cy">Asterisk 18.6</span>','required','low','存活','ok'],
+  ['192.168.100.23','5060','UDP','<span class="cy">FreePBX/pjsip</span>','required','low','存活','ok'],
+  ['192.168.100.50','5060','TCP','<span class="cy">—</span>','—','—','超时','warn'],
+  ['192.168.100.77','5060','UDP','<span class="cy">Grandstream UCM</span>','none','<span style="color:var(--err)">CVE-2020-5722</span>','高危','err'],
+  ['192.168.100.91','5061','TLS','<span class="cy">Yealink T46</span>','required','low','存活','ok'],
+  ['192.168.100.112','5060','UDP','<span class="cy">3CX</span>','required','弱口令','中危','warn'],
+];
+const rtab=document.getElementById('rtab');let ri=0;
+function addRow(){
+  const r=sample[ri%sample.length];ri++;
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td>
+    <td><span class="badge ${r[7]}">${r[6]}</span></td>`;
+  rtab.appendChild(tr);
+  if(rtab.children.length>6)rtab.removeChild(rtab.firstChild);
+}
+for(let i=0;i<5;i++)setTimeout(addRow,i*250);
+setInterval(addRow,1600);
+
+/* ===== SIP扫描 终端打字 + 进度条 ===== */
+const scanLines=[
+  ['mut','> scanning 192.168.100.1-255 :5060/udp · threads=200'],
+  ['cy','[*] sending OPTIONS probes ...'],
+  ['ok','[OK] 192.168.100.10:5060  Asterisk PBX 18.6  (auth: required)'],
+  ['ok','[OK] 192.168.100.23:5060  FreePBX / chan_pjsip'],
+  ['warn','[!] 192.168.100.50:5060  timeout, retrying ...'],
+  ['err','[ERR] 192.168.100.50:5060  no response'],
+  ['ok','[OK] 192.168.100.77:5060  Grandstream UCM6202  CVE-2020-5722'],
+  ['mut','--- 4 hosts up · 1 vulnerable · elapsed 6.2s ---'],
+];
+const scanTerm=document.getElementById('scanTerm'),scanProg=document.getElementById('scanProg');
+let scanTimer=null;
+function runScan(){
+  if(scanTimer)return;scanTerm.innerHTML='';scanProg.style.width='0';
+  let i=0;
+  scanTimer=setInterval(()=>{
+    if(i>=scanLines.length){clearInterval(scanTimer);scanTimer=null;
+      const c=document.createElement('div');c.innerHTML='<span class="prompt">&gt;</span> <span class="cursor"></span>';scanTerm.appendChild(c);
+      scanProg.style.width='100%';return;}
+    const [cls,txt]=scanLines[i];const div=document.createElement('div');
+    div.innerHTML=`<span class="${cls}">${txt.replace(/</g,'&lt;')}</span>`;scanTerm.appendChild(div);
+    scanTerm.scrollTop=scanTerm.scrollHeight;
+    scanProg.style.width=Math.round((i+1)/scanLines.length*100)+'%';i++;
+  },650);
+}
+document.getElementById('scanBtn').addEventListener('click',runScan);
+document.getElementById('clrBtn').addEventListener('click',()=>{
+  if(scanTimer){clearInterval(scanTimer);scanTimer=null;}
+  scanTerm.innerHTML='<span class="prompt">&gt;</span> <span class="cursor"></span>';scanProg.style.width='0';});
+</script>
+</body>
+</html>

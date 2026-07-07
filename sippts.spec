@@ -37,6 +37,7 @@ hiddenimports.extend(collect_submodules('sippts'))
 hiddenimports.extend(collect_submodules('PyQt5.QtCore'))
 hiddenimports.extend(collect_submodules('PyQt5.QtGui'))
 hiddenimports.extend(collect_submodules('PyQt5.QtWidgets'))
+hiddenimports.extend(collect_submodules('PyQt5.QtChart'))
 hiddenimports.extend(['netifaces', 'pyshark', 'scapy', 're', 'socket', 'asyncio', 'subprocess', 'platform', 'lxml', 'lxml.etree', 'lxml.objectify'])
 
 # 排除matplotlib_inline模块，它在打包过程中导致问题
